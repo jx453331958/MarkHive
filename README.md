@@ -1,5 +1,7 @@
 # MarkHive
 
+[中文文档](README_CN.md)
+
 API-driven Markdown document management with version history and diff.
 
 ## Features
@@ -10,7 +12,8 @@ API-driven Markdown document management with version history and diff.
 - **Dark Theme UI** - Built-in web viewer for browsing, history, and diff
 - **Full-text Search** - Search across document titles and content
 - **Zero Framework** - Pure Node.js server, single dependency (`better-sqlite3`)
-- **Docker Ready** - One-command deployment
+- **Agent Skill** - Built-in `/api/skill` endpoint for AI agent discovery
+- **Docker Ready** - One-command deployment with `manage.sh`
 
 ## Quick Start
 

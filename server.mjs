@@ -442,6 +442,86 @@ async function serveStatic(res, filepath) {
 }
 
 // ============================================================
+// Skill (Agent-readable API documentation)
+// ============================================================
+function handleSkill(req, res) {
+  const host = req.headers.host || `localhost:${PORT}`;
+  const base = `http://${host}`;
+  const authHeader = API_KEY
+    ? `\nAuthentication: Bearer token via "Authorization: Bearer <API_KEY>" header.`
+    : `\nAuthentication: None required (API_KEY not configured).`;
+
+  const skill = `# MarkHive API Skill
+
+MarkHive is an API-driven Markdown document management service with version history and diff.
+Base URL: ${base}
+${authHeader}
+
+## Available Endpoints
+
+### List Documents
+GET ${base}/api/docs
+GET ${base}/api/docs?search=<keyword>
+Response: Array of {id, title, created_at, updated_at, version}
+
+### Create Document
+POST ${base}/api/docs
+Content-Type: application/json
+Body: {"content": "# Markdown content", "title": "optional", "message": "optional commit message"}
+Response: {id, title, version, created_at, updated_at}
+
+### Get Document
+GET ${base}/api/docs/<id>
+Response: {id, title, content, created_at, updated_at, version}
+
+### Update Document
+PUT ${base}/api/docs/<id>
+Content-Type: application/json
+Body: {"content": "# Updated content", "message": "what changed"}
+Response: {id, title, version, updated_at}
+Note: Each update creates a new version automatically.
+
+### Delete Document
+DELETE ${base}/api/docs/<id>
+Response: {ok: true}
+Note: Also deletes all version history.
+
+### Version History
+GET ${base}/api/docs/<id>/history
+Response: {doc_id, title, revisions: [{version, title, message, additions, deletions, created_at}]}
+
+### Get Specific Version
+GET ${base}/api/docs/<id>/versions/<version_number>
+Response: {version, title, content, message, additions, deletions, created_at}
+
+### Diff Between Versions
+GET ${base}/api/docs/<id>/diff?from=<v1>&to=<v2>
+Response: {doc_id, from_version, to_version, hunks: [{oldStart, oldLines, newStart, newLines, changes: [{type, value}]}], stats: {additions, deletions}}
+Change types: "context" (unchanged), "insert" (added), "delete" (removed)
+
+## Workflow Examples
+
+1. Create a doc: POST /api/docs with {"content": "# Title\\n\\nBody"}
+2. Update it: PUT /api/docs/<id> with {"content": "...", "message": "describe change"}
+3. View history: GET /api/docs/<id>/history
+4. Compare versions: GET /api/docs/<id>/diff?from=1&to=2
+
+## Notes
+- Document titles are auto-extracted from the first # heading if not provided.
+- All timestamps are ISO 8601 format.
+- The "message" field is optional but recommended (like a git commit message).
+- Diff uses LCS algorithm and returns unified diff hunks with context lines.
+`;
+
+  const body = skill.trim();
+  res.writeHead(200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body),
+  });
+  res.end(body);
+}
+
+// ============================================================
 // Router
 // ============================================================
 async function handleRequest(req, res) {
@@ -459,6 +539,9 @@ async function handleRequest(req, res) {
 
     // Health
     if (pathname === '/health') return sendJSON(res, 200, { status: 'ok' });
+
+    // Skill (no auth required - for agent discovery)
+    if (pathname === '/api/skill' && method === 'GET') return handleSkill(req, res);
 
     // Auth routes
     if (pathname === '/api/login' && method === 'POST') return handleLogin(req, res);
