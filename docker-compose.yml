@@ -1,0 +1,12 @@
+services:
+  markhive:
+    build: .
+    ports:
+      - "3457:3457"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - API_KEY=${API_KEY:-}
+      - ENABLE_AUTH=${ENABLE_AUTH:-true}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-admin}
+    restart: unless-stopped

@@ -1,0 +1,16 @@
+{
+  "name": "markhive",
+  "version": "1.0.0",
+  "description": "API-driven Markdown document management with version history and diff",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  }
+}
