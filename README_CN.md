@@ -184,7 +184,10 @@ curl -X DELETE http://localhost:3457/api/docs/DOC_ID \
 ## Docker 部署
 
 ```bash
-# 构建并启动
+# 拉取镜像并启动（推荐）
+docker compose up -d
+
+# 或本地构建
 docker compose up -d --build
 
 # 查看日志
@@ -193,6 +196,8 @@ docker compose logs -f
 # 停止
 docker compose down
 ```
+
+预构建的多架构镜像（`linux/amd64` + `linux/arm64`）通过 GitHub Actions 自动发布到 GHCR。
 
 数据存储在 `./data/` 目录中（作为 Docker Volume 挂载），重建容器不会丢失数据。
 

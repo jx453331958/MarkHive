@@ -135,12 +135,14 @@ curl "http://localhost:3457/api/docs/DOC_ID/diff?from=1&to=2" \
 ## Docker
 
 ```bash
-# Build and run
+# Pull and run (recommended)
 docker compose up -d
 
-# Or pull and run directly
+# Or build locally
 docker compose up -d --build
 ```
+
+Pre-built images for `linux/amd64` and `linux/arm64` are published to GHCR via GitHub Actions.
 
 Data persists in `./data/` directory (mounted as volume).
 

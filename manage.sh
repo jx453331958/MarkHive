@@ -44,9 +44,9 @@ EOF
   # Create data directory
   mkdir -p "$PROJECT_DIR/data"
 
-  # Build docker image
-  log "Building Docker image..."
-  docker compose -f "$COMPOSE_FILE" build
+  # Pull docker image
+  log "Pulling Docker image..."
+  docker compose -f "$COMPOSE_FILE" pull
 
   log "Installation complete!"
   echo ""
@@ -112,9 +112,9 @@ cmd_update() {
     warn "Not a git repository, skipping code update"
   fi
 
-  # Rebuild and restart
-  log "Rebuilding Docker image..."
-  docker compose -f "$COMPOSE_FILE" build
+  # Pull and restart
+  log "Pulling latest image..."
+  docker compose -f "$COMPOSE_FILE" pull
   docker compose -f "$COMPOSE_FILE" up -d
   sleep 1
   log "Update complete!"

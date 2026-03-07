@@ -1,8 +1,8 @@
 services:
   markhive:
-    build: .
+    image: ghcr.io/jx453331958/markhive:latest
     ports:
-      - "3457:3457"
+      - "${PORT:-3457}:3457"
     volumes:
       - ./data:/app/data
     environment:

@@ -1,16 +1,16 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
-
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
 
-# Remove build tools after native module compilation
-RUN apk del python3 make g++
+FROM node:20-alpine
 
-COPY server.mjs entrypoint.sh ./
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json server.mjs entrypoint.sh ./
 COPY public ./public
 
 RUN chmod +x entrypoint.sh
