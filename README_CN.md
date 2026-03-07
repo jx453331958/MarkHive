@@ -15,41 +15,44 @@
 
 ## 快速开始
 
-### 方式一：Docker 部署（推荐）
+### 一键部署（推荐）
 
 ```bash
-# 克隆项目
+curl -fsSL https://raw.githubusercontent.com/jx453331958/MarkHive/main/install.sh | bash
+```
+
+自动下载配置文件、拉取 Docker 镜像并启动服务。默认端口 `3457`。
+
+安装完成后，使用管理脚本维护服务：
+
+```bash
+cd markhive
+./manage.sh help
+```
+
+### 开发模式
+
+```bash
 git clone https://github.com/jx453331958/MarkHive.git
 cd MarkHive
-
-# 使用管理脚本一键部署
-chmod +x manage.sh
-./manage.sh install
-./manage.sh start
-```
-
-### 方式二：直接运行
-
-```bash
 npm install
-npm run dev    # 开发模式（热重载）
-npm start      # 生产模式
+npm run dev
 ```
 
-需要 Node.js >= 20，默认端口 `3457`。
+需要 Node.js >= 20。
 
 ## 管理脚本
 
 项目提供 `manage.sh` 一键管理脚本：
 
 ```bash
-./manage.sh install    # 首次安装（生成配置、构建镜像）
+./manage.sh install    # 首次安装（生成配置、拉取镜像）
 ./manage.sh start      # 启动服务
 ./manage.sh stop       # 停止服务
 ./manage.sh restart    # 重启服务
 ./manage.sh status     # 查看运行状态
 ./manage.sh logs       # 查看实时日志
-./manage.sh update     # 拉取最新代码并重新构建
+./manage.sh update     # 拉取最新镜像并重启
 ./manage.sh backup     # 备份数据库
 ./manage.sh uninstall  # 停止并清理容器
 ```

@@ -18,17 +18,21 @@ API-driven Markdown document management with version history and diff.
 ## Quick Start
 
 ```bash
-# Install
-npm install
-
-# Start (development with hot reload)
-npm run dev
-
-# Start (production)
-npm start
+curl -fsSL https://raw.githubusercontent.com/jx453331958/MarkHive/main/install.sh | bash
 ```
 
-Requires Node.js >= 20. Server runs on `http://localhost:3457`.
+This will download config files, pull the Docker image, and start the service. Server runs on `http://localhost:3457`.
+
+### Development
+
+```bash
+git clone https://github.com/jx453331958/MarkHive.git
+cd MarkHive
+npm install
+npm run dev
+```
+
+Requires Node.js >= 20.
 
 ## Configuration
 
