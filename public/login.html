@@ -105,9 +105,12 @@ button:hover { background: var(--accent-hover); }
   </form>
 </div>
 <script>
-// Apply saved theme
-const theme = localStorage.getItem('markhive-theme') || 'dark';
-document.documentElement.setAttribute('data-theme', theme);
+// Apply saved theme (auto = follow system)
+const theme = localStorage.getItem('markhive-theme') || 'auto';
+const effective = theme === 'auto'
+  ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+  : theme;
+document.documentElement.setAttribute('data-theme', effective);
 
 // Fetch site title
 fetch('/api/config').then(r => r.json()).then(c => {

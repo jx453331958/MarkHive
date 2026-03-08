@@ -840,6 +840,7 @@ const i18n = {
     sharePermanent: '永久',
     themeLight: '浅色',
     themeDark: '深色',
+    themeAuto: '跟随系统',
   },
   en: {
     searchPlaceholder: 'Search documents...',
@@ -922,6 +923,7 @@ const i18n = {
     sharePermanent: 'Permanent',
     themeLight: 'Light',
     themeDark: 'Dark',
+    themeAuto: 'Auto',
   }
 };
 
@@ -932,17 +934,25 @@ let currentView = 'view'; // view | edit | history | diff | version
 let sortMode = 'time-desc';
 let searchQuery = '';
 let lang = localStorage.getItem('markhive-lang') || 'zh';
-let theme = localStorage.getItem('markhive-theme') || 'dark';
+let theme = localStorage.getItem('markhive-theme') || 'auto';
 let isNewDoc = false;
 
 function t(key) { return i18n[lang][key] || key; }
 
+function getEffectiveTheme() {
+  if (theme === 'auto') return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return theme;
+}
+
 function applyTheme() {
-  document.documentElement.setAttribute('data-theme', theme);
+  const effective = getEffectiveTheme();
+  document.documentElement.setAttribute('data-theme', effective);
   localStorage.setItem('markhive-theme', theme);
   const btn = document.getElementById('themeBtn');
-  btn.textContent = theme === 'dark' ? '\u263E' : '\u2600';
-  btn.title = theme === 'dark' ? t('themeLight') : t('themeDark');
+  const icons = { dark: '\u263E', light: '\u2600', auto: '\u25D1' };
+  const labels = { dark: t('themeLight'), light: t('themeAuto'), auto: t('themeDark') };
+  btn.textContent = icons[theme] || '\u25D1';
+  btn.title = labels[theme] || '';
 }
 
 function applyLang() {
@@ -1693,8 +1703,13 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('themeBtn').addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
+  theme = theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark';
   applyTheme();
+});
+
+// Listen for system theme changes when in auto mode
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+  if (theme === 'auto') applyTheme();
 });
 
 document.getElementById('langBtn').addEventListener('click', () => {
