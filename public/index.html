@@ -66,6 +66,7 @@ body {
   font-weight: 700;
   letter-spacing: -.3px;
 }
+.sidebar-header-right { display: flex; align-items: center; gap: 8px; }
 .doc-count {
   font-size: 12px;
   color: var(--text-muted);
@@ -73,6 +74,22 @@ body {
   padding: 2px 8px;
   border-radius: 10px;
 }
+.new-doc-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background .15s;
+  line-height: 1;
+}
+.new-doc-btn:hover { background: var(--accent-dim); }
 .search-box {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
@@ -125,7 +142,7 @@ body {
   justify-content: space-between;
 }
 .sort-btns { display: flex; gap: 4px; }
-.sort-btn {
+.sort-btn, .lang-btn {
   padding: 4px 8px;
   font-size: 11px;
   color: var(--text-muted);
@@ -135,8 +152,9 @@ body {
   cursor: pointer;
   transition: all .15s;
 }
-.sort-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.sort-btn:hover, .lang-btn:hover { color: var(--text); border-color: var(--text-muted); }
 .sort-btn.active { color: var(--accent); border-color: var(--accent); }
+.footer-right { display: flex; gap: 4px; }
 .logout-btn {
   padding: 4px 8px;
   font-size: 11px;
@@ -177,6 +195,7 @@ body {
 }
 .action-btn:hover { color: var(--text); border-color: var(--text-muted); }
 .action-btn.active { color: var(--accent); border-color: var(--accent); }
+.action-btn.danger:hover { color: var(--red); border-color: var(--red); }
 .main-body {
   flex: 1;
   overflow-y: auto;
@@ -384,6 +403,174 @@ body {
   font-size: 14px;
 }
 
+/* ===== Editor ===== */
+.editor-view {
+  max-width: 960px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn .25s;
+}
+.editor-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.editor-title-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+.editor-title-input:focus { border-color: var(--accent); }
+.editor-msg-input {
+  width: 240px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .2s;
+}
+.editor-msg-input:focus { border-color: var(--accent); }
+.editor-content {
+  flex: 1;
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+  transition: border-color .2s;
+}
+.editor-content:focus { border-color: var(--accent); }
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+.editor-char-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.editor-btns { display: flex; gap: 8px; }
+.save-btn {
+  padding: 7px 20px;
+  font-size: 13px;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.save-btn:hover { background: var(--accent-dim); }
+.save-btn:disabled { opacity: .5; cursor: not-allowed; }
+.cancel-btn {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.cancel-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+/* ===== Confirm Dialog ===== */
+.dialog-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn .15s;
+}
+.dialog-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+}
+.dialog-title {
+  font-size: 16px;
+  color: var(--text-bright);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.dialog-msg {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.dialog-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dialog-btn-cancel {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dialog-btn-cancel:hover { color: var(--text); border-color: var(--text-muted); }
+.dialog-btn-danger {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: #fff;
+  background: var(--red);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dialog-btn-danger:hover { background: #d63a33; }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-bright);
+  font-size: 13px;
+  z-index: 200;
+  animation: fadeIn .2s;
+  pointer-events: none;
+}
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
 /* ===== Mobile Menu ===== */
 .mobile-toggle {
   display: none;
@@ -446,18 +633,24 @@ body {
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h1>MarkHive</h1>
-      <span class="doc-count" id="docCount">0</span>
+      <div class="sidebar-header-right">
+        <span class="doc-count" id="docCount">0</span>
+        <button class="new-doc-btn" id="newDocBtn" title="">+</button>
+      </div>
     </div>
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search documents...">
+      <input type="text" id="searchInput">
     </div>
     <div class="doc-list" id="docList"></div>
     <div class="sidebar-footer">
       <div class="sort-btns">
-        <button class="sort-btn active" data-sort="time" id="sortTime">Time</button>
-        <button class="sort-btn" data-sort="title" id="sortTitle">Title</button>
+        <button class="sort-btn active" data-sort="time" id="sortTime"></button>
+        <button class="sort-btn" data-sort="title" id="sortTitle"></button>
       </div>
-      <button class="logout-btn" id="logoutBtn">Logout</button>
+      <div class="footer-right">
+        <button class="lang-btn" id="langBtn"></button>
+        <button class="logout-btn" id="logoutBtn"></button>
+      </div>
     </div>
   </aside>
 
@@ -469,24 +662,139 @@ body {
         <span class="version-badge" id="versionBadge"></span>
       </div>
       <div class="main-actions" id="mainActions">
-        <button class="action-btn" id="btnView">View</button>
-        <button class="action-btn" id="btnHistory">History</button>
-        <button class="action-btn" id="btnRaw">Raw</button>
+        <button class="action-btn" id="btnView"></button>
+        <button class="action-btn" id="btnEdit"></button>
+        <button class="action-btn" id="btnHistory"></button>
+        <button class="action-btn" id="btnRaw"></button>
+        <button class="action-btn danger" id="btnDelete"></button>
       </div>
     </div>
     <div class="main-body" id="mainBody">
-      <div class="empty-state" id="emptyState">Select a document to view</div>
+      <div class="empty-state" id="emptyState"></div>
     </div>
   </main>
 </div>
 
 <script>
+// ===== i18n =====
+const i18n = {
+  zh: {
+    searchPlaceholder: '搜索文档...',
+    sortTime: '时间',
+    sortTitle: '标题',
+    logout: '退出',
+    selectDoc: '选择一篇文档开始阅读',
+    view: '预览',
+    edit: '编辑',
+    history: '历史',
+    raw: '下载',
+    delete: '删除',
+    newDoc: '新建文档',
+    versionHistory: '版本历史',
+    noMessage: '(无说明)',
+    noChange: '无变更',
+    viewBtn: '查看',
+    diffBtn: '对比',
+    loadingHistory: '加载历史...',
+    loadingVersion: '加载版本...',
+    computingDiff: '计算差异...',
+    viewingVersion: '查看版本',
+    backToCurrent: '返回最新',
+    backToHistory: '返回历史',
+    noChanges: '两个版本之间没有差异',
+    titlePlaceholder: '文档标题（留空则从正文提取）',
+    messagePlaceholder: '版本说明（可选）',
+    save: '保存',
+    saving: '保存中...',
+    cancel: '取消',
+    deleteTitle: '确认删除',
+    deleteMsg: '确定要删除这篇文档吗？此操作不可恢复，所有版本历史将一并删除。',
+    confirmDelete: '删除',
+    cancelBtn: '取消',
+    saveSuccess: '保存成功',
+    deleteSuccess: '删除成功',
+    saveFailed: '保存失败',
+    deleteFailed: '删除失败',
+    contentEmpty: '请输入文档内容',
+    historical: '历史版本',
+    langSwitch: 'EN',
+    chars: '字符',
+    lines: '行',
+    newDocTitle: '新建文档',
+  },
+  en: {
+    searchPlaceholder: 'Search documents...',
+    sortTime: 'Time',
+    sortTitle: 'Title',
+    logout: 'Logout',
+    selectDoc: 'Select a document to view',
+    view: 'View',
+    edit: 'Edit',
+    history: 'History',
+    raw: 'Download',
+    delete: 'Delete',
+    newDoc: 'New Document',
+    versionHistory: 'Version History',
+    noMessage: '(no message)',
+    noChange: 'no change',
+    viewBtn: 'View',
+    diffBtn: 'Diff',
+    loadingHistory: 'Loading history...',
+    loadingVersion: 'Loading version...',
+    computingDiff: 'Computing diff...',
+    viewingVersion: 'Viewing version',
+    backToCurrent: 'Back to current',
+    backToHistory: 'Back to history',
+    noChanges: 'No changes between these versions',
+    titlePlaceholder: 'Title (auto-extracted from heading if empty)',
+    messagePlaceholder: 'Version message (optional)',
+    save: 'Save',
+    saving: 'Saving...',
+    cancel: 'Cancel',
+    deleteTitle: 'Confirm Delete',
+    deleteMsg: 'Are you sure you want to delete this document? This action cannot be undone and all version history will be lost.',
+    confirmDelete: 'Delete',
+    cancelBtn: 'Cancel',
+    saveSuccess: 'Saved successfully',
+    deleteSuccess: 'Deleted successfully',
+    saveFailed: 'Failed to save',
+    deleteFailed: 'Failed to delete',
+    contentEmpty: 'Please enter document content',
+    historical: 'historical',
+    langSwitch: '中文',
+    chars: 'chars',
+    lines: 'lines',
+    newDocTitle: 'New Document',
+  }
+};
+
 // ===== State =====
 let allDocs = [];
 let currentDoc = null;
-let currentView = 'view'; // view | history | diff | version
+let currentView = 'view'; // view | edit | history | diff | version
 let sortMode = 'time-desc';
 let searchQuery = '';
+let lang = localStorage.getItem('markhive-lang') || 'zh';
+let isNewDoc = false;
+
+function t(key) { return i18n[lang][key] || key; }
+
+function applyLang() {
+  localStorage.setItem('markhive-lang', lang);
+  document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+  document.getElementById('sortTime').textContent = t('sortTime');
+  document.getElementById('sortTitle').textContent = t('sortTitle');
+  document.getElementById('logoutBtn').textContent = t('logout');
+  document.getElementById('langBtn').textContent = t('langSwitch');
+  document.getElementById('newDocBtn').title = t('newDoc');
+  document.getElementById('btnView').textContent = t('view');
+  document.getElementById('btnEdit').textContent = t('edit');
+  document.getElementById('btnHistory').textContent = t('history');
+  document.getElementById('btnRaw').textContent = t('raw');
+  document.getElementById('btnDelete').textContent = t('delete');
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.textContent = t('selectDoc');
+}
 
 // ===== API =====
 async function api(path, options = {}) {
@@ -530,16 +838,51 @@ async function fetchDiff(id, from, to) {
   return res.json();
 }
 
+// ===== Toast =====
+function showToast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ===== Confirm Dialog =====
+function showConfirm(title, msg, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay';
+  overlay.innerHTML = `
+    <div class="dialog-box">
+      <div class="dialog-title">${escapeHtml(title)}</div>
+      <div class="dialog-msg">${escapeHtml(msg)}</div>
+      <div class="dialog-btns">
+        <button class="dialog-btn-cancel" id="dialogCancel">${t('cancelBtn')}</button>
+        <button class="dialog-btn-danger" id="dialogConfirm">${t('confirmDelete')}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#dialogCancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#dialogConfirm').addEventListener('click', () => {
+    overlay.remove();
+    onConfirm();
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 // ===== Rendering =====
 function formatTime(iso) {
   const d = new Date(iso);
   const now = new Date();
   const diff = now - d;
-  if (diff < 60000) return 'Just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const rtf = lang === 'zh'
+    ? { now: '刚刚', m: '分钟前', h: '小时前', d: '天前' }
+    : { now: 'Just now', m: 'm ago', h: 'h ago', d: 'd ago' };
+  if (diff < 60000) return rtf.now;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}${rtf.m}`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}${rtf.h}`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}${rtf.d}`;
+  return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 function sortDocs(docs) {
@@ -547,8 +890,8 @@ function sortDocs(docs) {
   switch (sortMode) {
     case 'time-desc': sorted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)); break;
     case 'time-asc': sorted.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at)); break;
-    case 'title-asc': sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh')); break;
-    case 'title-desc': sorted.sort((a, b) => b.title.localeCompare(a.title, 'zh')); break;
+    case 'title-asc': sorted.sort((a, b) => a.title.localeCompare(b.title, lang === 'zh' ? 'zh' : 'en')); break;
+    case 'title-desc': sorted.sort((a, b) => b.title.localeCompare(a.title, lang === 'zh' ? 'zh' : 'en')); break;
   }
   return sorted;
 }
@@ -579,10 +922,10 @@ async function selectDoc(id) {
   const doc = await fetchDoc(id);
   if (!doc) return;
   currentDoc = doc;
+  isNewDoc = false;
   currentView = 'view';
   renderDocList();
   showDocView();
-  // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 }
 
@@ -596,25 +939,178 @@ function showDocView() {
   document.getElementById('mainTitle').textContent = currentDoc.title;
   document.getElementById('versionBadge').textContent = `v${currentDoc.version}`;
 
-  // Update active button
   updateActionButtons('view');
-
   body.innerHTML = `<div class="markdown-body">${marked.parse(currentDoc.content)}</div>`;
 }
 
 function updateActionButtons(active) {
-  ['btnView', 'btnHistory', 'btnRaw'].forEach(id => {
-    document.getElementById(id).classList.toggle('active', id === `btn${active.charAt(0).toUpperCase() + active.slice(1)}`);
+  const map = { view: 'btnView', edit: 'btnEdit', history: 'btnHistory', raw: 'btnRaw' };
+  Object.entries(map).forEach(([key, id]) => {
+    document.getElementById(id).classList.toggle('active', key === active);
   });
 }
 
+// ===== Editor =====
+function showEditor(doc) {
+  currentView = 'edit';
+  const header = document.getElementById('mainHeader');
+  const body = document.getElementById('mainBody');
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.style.display = 'none';
+
+  if (doc) {
+    header.style.display = 'flex';
+    document.getElementById('mainTitle').textContent = doc.title;
+    document.getElementById('versionBadge').textContent = `v${doc.version}`;
+    updateActionButtons('edit');
+  } else {
+    header.style.display = 'flex';
+    document.getElementById('mainTitle').textContent = t('newDocTitle');
+    document.getElementById('versionBadge').textContent = '';
+    updateActionButtons('edit');
+  }
+
+  const titleVal = doc ? doc.title : '';
+  const contentVal = doc ? doc.content : '';
+
+  body.innerHTML = `
+    <div class="editor-view">
+      <div class="editor-toolbar">
+        <input type="text" class="editor-title-input" id="editorTitle"
+               placeholder="${t('titlePlaceholder')}" value="${escapeHtml(titleVal)}">
+        <input type="text" class="editor-msg-input" id="editorMsg"
+               placeholder="${t('messagePlaceholder')}">
+      </div>
+      <textarea class="editor-content" id="editorContent">${escapeHtml(contentVal)}</textarea>
+      <div class="editor-footer">
+        <span class="editor-char-count" id="editorStats"></span>
+        <div class="editor-btns">
+          <button class="cancel-btn" id="editorCancel">${t('cancel')}</button>
+          <button class="save-btn" id="editorSave">${t('save')}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const textarea = document.getElementById('editorContent');
+  const statsEl = document.getElementById('editorStats');
+
+  function updateStats() {
+    const val = textarea.value;
+    const chars = val.length;
+    const lines = val ? val.split('\n').length : 0;
+    statsEl.textContent = `${chars} ${t('chars')} · ${lines} ${t('lines')}`;
+  }
+  updateStats();
+  textarea.addEventListener('input', updateStats);
+
+  // Tab key support
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + 2;
+      updateStats();
+    }
+    // Ctrl/Cmd+S to save
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      document.getElementById('editorSave').click();
+    }
+  });
+
+  document.getElementById('editorCancel').addEventListener('click', () => {
+    if (isNewDoc) {
+      currentDoc = null;
+      isNewDoc = false;
+      document.getElementById('mainHeader').style.display = 'none';
+      body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
+    } else if (currentDoc) {
+      showDocView();
+    }
+  });
+
+  document.getElementById('editorSave').addEventListener('click', handleSave);
+  textarea.focus();
+}
+
+async function handleSave() {
+  const content = document.getElementById('editorContent').value.trim();
+  if (!content) {
+    showToast(t('contentEmpty'), 'error');
+    return;
+  }
+  const title = document.getElementById('editorTitle').value.trim();
+  const message = document.getElementById('editorMsg').value.trim();
+  const saveBtn = document.getElementById('editorSave');
+  saveBtn.textContent = t('saving');
+  saveBtn.disabled = true;
+
+  try {
+    const bodyData = { content };
+    if (title) bodyData.title = title;
+    if (message) bodyData.message = message;
+
+    let res;
+    if (isNewDoc) {
+      res = await api('/api/docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+    } else {
+      res = await api(`/api/docs/${currentDoc.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+    }
+
+    if (res && res.ok) {
+      const result = await res.json();
+      showToast(t('saveSuccess'), 'success');
+      isNewDoc = false;
+      await fetchDocs();
+      await selectDoc(result.id);
+    } else {
+      showToast(t('saveFailed'), 'error');
+      saveBtn.textContent = t('save');
+      saveBtn.disabled = false;
+    }
+  } catch (e) {
+    showToast(t('saveFailed'), 'error');
+    saveBtn.textContent = t('save');
+    saveBtn.disabled = false;
+  }
+}
+
+async function handleDelete() {
+  if (!currentDoc) return;
+  showConfirm(t('deleteTitle'), t('deleteMsg'), async () => {
+    const res = await api(`/api/docs/${currentDoc.id}`, { method: 'DELETE' });
+    if (res && res.ok) {
+      showToast(t('deleteSuccess'), 'success');
+      currentDoc = null;
+      currentView = 'view';
+      document.getElementById('mainHeader').style.display = 'none';
+      document.getElementById('mainBody').innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
+      await fetchDocs();
+    } else {
+      showToast(t('deleteFailed'), 'error');
+    }
+  });
+}
+
+// ===== History / Diff / Version =====
 async function showHistory() {
   if (!currentDoc) return;
   currentView = 'history';
   updateActionButtons('history');
 
   const body = document.getElementById('mainBody');
-  body.innerHTML = '<div class="loading">Loading history...</div>';
+  body.innerHTML = `<div class="loading">${t('loadingHistory')}</div>`;
 
   const data = await fetchHistory(currentDoc.id);
   if (!data) return;
@@ -622,28 +1118,28 @@ async function showHistory() {
   const revisions = data.revisions;
   body.innerHTML = `
     <div class="history-view">
-      <div class="history-title">Version History</div>
+      <div class="history-title">${t('versionHistory')}</div>
       <ul class="revision-list">
         ${revisions.map((rev, idx) => `
           <li class="revision-item">
             <div class="revision-left">
               <div>
                 <span class="revision-ver">v${rev.version}</span>
-                <span class="revision-msg">${escapeHtml(rev.message || '(no message)')}</span>
+                <span class="revision-msg">${escapeHtml(rev.message || t('noMessage'))}</span>
               </div>
-              <div class="revision-time">${new Date(rev.created_at).toLocaleString('zh-CN')}</div>
+              <div class="revision-time">${new Date(rev.created_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</div>
             </div>
             <div class="revision-right">
               <span class="revision-stats">
                 ${rev.additions > 0 ? `<span class="stat-add">+${rev.additions}</span>` : ''}
                 ${rev.deletions > 0 ? ` <span class="stat-del">-${rev.deletions}</span>` : ''}
-                ${rev.additions === 0 && rev.deletions === 0 ? '<span style="color:var(--text-muted)">no change</span>' : ''}
+                ${rev.additions === 0 && rev.deletions === 0 ? `<span style="color:var(--text-muted)">${t('noChange')}</span>` : ''}
               </span>
-              <button class="rev-btn" data-action="view-version" data-version="${rev.version}">View</button>
+              <button class="rev-btn" data-action="view-version" data-version="${rev.version}">${t('viewBtn')}</button>
               ${idx < revisions.length - 1 ? `
                 <button class="rev-btn" data-action="diff"
                         data-from="${revisions[idx + 1].version}"
-                        data-to="${rev.version}">Diff</button>
+                        data-to="${rev.version}">${t('diffBtn')}</button>
               ` : ''}
             </div>
           </li>
@@ -666,20 +1162,20 @@ async function showVersion(version) {
   updateActionButtons('');
 
   const body = document.getElementById('mainBody');
-  body.innerHTML = '<div class="loading">Loading version...</div>';
+  body.innerHTML = `<div class="loading">${t('loadingVersion')}</div>`;
 
   const rev = await fetchVersion(currentDoc.id, version);
   if (!rev) return;
 
-  document.getElementById('versionBadge').textContent = `v${version} (historical)`;
+  document.getElementById('versionBadge').textContent = `v${version} (${t('historical')})`;
 
   body.innerHTML = `
     <div class="markdown-body">
       <div style="margin-bottom:16px;padding:8px 12px;background:var(--bg-elevated);border-radius:6px;font-size:13px;color:var(--text-muted)">
-        Viewing version ${version} · ${new Date(rev.created_at).toLocaleString('zh-CN')}
+        ${t('viewingVersion')} ${version} · ${new Date(rev.created_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
         ${rev.message ? ` · ${escapeHtml(rev.message)}` : ''}
-        <button class="rev-btn" style="margin-left:12px" id="backToCurrentBtn">Back to current</button>
-        <button class="rev-btn" style="margin-left:4px" id="backToHistoryBtn">Back to history</button>
+        <button class="rev-btn" style="margin-left:12px" id="backToCurrentBtn">${t('backToCurrent')}</button>
+        <button class="rev-btn" style="margin-left:4px" id="backToHistoryBtn">${t('backToHistory')}</button>
       </div>
       ${marked.parse(rev.content)}
     </div>
@@ -695,7 +1191,7 @@ async function showDiff(from, to) {
   updateActionButtons('');
 
   const body = document.getElementById('mainBody');
-  body.innerHTML = '<div class="loading">Computing diff...</div>';
+  body.innerHTML = `<div class="loading">${t('computingDiff')}</div>`;
 
   const data = await fetchDiff(currentDoc.id, from, to);
   if (!data) return;
@@ -705,9 +1201,9 @@ async function showDiff(from, to) {
       <div class="diff-view">
         <div class="diff-header-info">
           <div class="diff-title">v${from} → v${to}</div>
-          <button class="rev-btn" id="backToHistoryBtn2">Back to history</button>
+          <button class="rev-btn" id="backToHistoryBtn2">${t('backToHistory')}</button>
         </div>
-        <div class="diff-no-changes">No changes between these versions</div>
+        <div class="diff-no-changes">${t('noChanges')}</div>
       </div>
     `;
     document.getElementById('backToHistoryBtn2').addEventListener('click', showHistory);
@@ -724,7 +1220,7 @@ async function showDiff(from, to) {
             <span class="stat-del" style="margin-left:6px">-${data.stats.deletions}</span>
           </span>
         </div>
-        <button class="rev-btn" id="backToHistoryBtn3">Back to history</button>
+        <button class="rev-btn" id="backToHistoryBtn3">${t('backToHistory')}</button>
       </div>
       ${data.hunks.map(hunk => renderHunk(hunk)).join('')}
     </div>
@@ -792,8 +1288,29 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   window.location.href = '/login.html';
 });
 
+document.getElementById('langBtn').addEventListener('click', () => {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  applyLang();
+  renderDocList();
+  // Re-render current view if showing empty state
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.textContent = t('selectDoc');
+});
+
+document.getElementById('newDocBtn').addEventListener('click', () => {
+  currentDoc = null;
+  isNewDoc = true;
+  renderDocList();
+  showEditor(null);
+  document.getElementById('sidebar').classList.remove('open');
+});
+
 document.getElementById('btnView').addEventListener('click', () => {
   if (currentDoc && currentView !== 'view') showDocView();
+});
+document.getElementById('btnEdit').addEventListener('click', () => {
+  if (currentDoc && currentView !== 'edit') showEditor(currentDoc);
+  else if (isNewDoc) showEditor(null);
 });
 document.getElementById('btnHistory').addEventListener('click', () => {
   if (currentDoc && currentView !== 'history') showHistory();
@@ -808,12 +1325,14 @@ document.getElementById('btnRaw').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(url);
 });
+document.getElementById('btnDelete').addEventListener('click', handleDelete);
 
 document.getElementById('mobileToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
 });
 
 // ===== Init =====
+applyLang();
 fetchDocs();
 </script>
 </body>
