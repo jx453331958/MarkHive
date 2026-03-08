@@ -68,6 +68,12 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 10;
+  transition: margin-left .25s ease, opacity .2s ease;
+}
+.sidebar.collapsed {
+  margin-left: calc(var(--sidebar-w) * -1);
+  opacity: 0;
+  pointer-events: none;
 }
 .sidebar-header {
   padding: 14px 16px;
@@ -182,6 +188,25 @@ body {
   cursor: pointer;
 }
 .logout-btn:hover { color: var(--red); border-color: var(--red); }
+
+/* ===== Sidebar Toggle ===== */
+.sidebar-toggle {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all .15s;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.sidebar-toggle:hover { color: var(--text); border-color: var(--text-muted); }
 
 /* ===== Main Content ===== */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -676,9 +701,13 @@ body {
     bottom: 0;
     transform: translateX(-100%);
     transition: transform .25s;
+    margin-left: 0 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
   .sidebar.open { transform: translateX(0); }
   .mobile-toggle { display: flex; }
+  .sidebar-toggle { display: none; }
   .main-body { padding: 20px 16px; }
 }
 
@@ -736,12 +765,13 @@ body {
 
   <!-- Main -->
   <main class="main">
-    <div class="main-header" id="mainHeader" style="display:none">
+    <div class="main-header">
       <div style="display:flex;align-items:center">
+        <button class="sidebar-toggle" id="sidebarToggle" title="">&#9776;</button>
         <span class="main-title" id="mainTitle"></span>
         <span class="version-badge" id="versionBadge"></span>
       </div>
-      <div class="main-actions" id="mainActions">
+      <div class="main-actions" id="mainActions" style="display:none">
         <button class="action-btn" id="btnView"></button>
         <button class="action-btn" id="btnEdit"></button>
         <button class="action-btn" id="btnHistory"></button>
@@ -841,6 +871,7 @@ const i18n = {
     themeLight: '浅色',
     themeDark: '深色',
     themeAuto: '跟随系统',
+    toggleSidebar: '收起/展开侧边栏',
   },
   en: {
     searchPlaceholder: 'Search documents...',
@@ -924,6 +955,7 @@ const i18n = {
     themeLight: 'Light',
     themeDark: 'Dark',
     themeAuto: 'Auto',
+    toggleSidebar: 'Toggle sidebar',
   }
 };
 
@@ -936,8 +968,16 @@ let searchQuery = '';
 let lang = localStorage.getItem('markhive-lang') || 'zh';
 let theme = localStorage.getItem('markhive-theme') || 'auto';
 let isNewDoc = false;
+let sidebarCollapsed = localStorage.getItem('markhive-sidebar') === 'collapsed';
 
 function t(key) { return i18n[lang][key] || key; }
+
+function applySidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+  localStorage.setItem('markhive-sidebar', sidebarCollapsed ? 'collapsed' : 'expanded');
+  document.getElementById('sidebarToggle').title = t('toggleSidebar');
+}
 
 function getEffectiveTheme() {
   if (theme === 'auto') return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -964,6 +1004,7 @@ function applyLang() {
   document.getElementById('langBtn').textContent = t('langSwitch');
   document.getElementById('newDocBtn').title = t('newDoc');
   document.getElementById('trashBtn').title = t('trash');
+  document.getElementById('sidebarToggle').title = t('toggleSidebar');
   // Only update main action buttons if they exist (not in trash view)
   const btnView = document.getElementById('btnView');
   if (btnView) {
@@ -1117,11 +1158,10 @@ async function selectDoc(id) {
 
 function showDocView() {
   currentView = 'view';
-  const header = document.getElementById('mainHeader');
   const body = document.getElementById('mainBody');
   const empty = document.getElementById('emptyState');
 
-  header.style.display = 'flex';
+  document.getElementById('mainActions').style.display = 'flex';
   if (empty) empty.style.display = 'none';
   document.getElementById('mainTitle').textContent = currentDoc.title;
   document.getElementById('versionBadge').textContent = `v${currentDoc.version}`;
@@ -1140,18 +1180,16 @@ function updateActionButtons(active) {
 // ===== Editor =====
 function showEditor(doc) {
   currentView = 'edit';
-  const header = document.getElementById('mainHeader');
   const body = document.getElementById('mainBody');
   const empty = document.getElementById('emptyState');
   if (empty) empty.style.display = 'none';
+  document.getElementById('mainActions').style.display = 'flex';
 
   if (doc) {
-    header.style.display = 'flex';
     document.getElementById('mainTitle').textContent = doc.title;
     document.getElementById('versionBadge').textContent = `v${doc.version}`;
     updateActionButtons('edit');
   } else {
-    header.style.display = 'flex';
     document.getElementById('mainTitle').textContent = t('newDocTitle');
     document.getElementById('versionBadge').textContent = '';
     updateActionButtons('edit');
@@ -1212,7 +1250,9 @@ function showEditor(doc) {
     if (isNewDoc) {
       currentDoc = null;
       isNewDoc = false;
-      document.getElementById('mainHeader').style.display = 'none';
+      document.getElementById('mainActions').style.display = 'none';
+      document.getElementById('mainTitle').textContent = '';
+      document.getElementById('versionBadge').textContent = '';
       body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
     } else if (currentDoc) {
       showDocView();
@@ -1281,7 +1321,9 @@ async function handleDelete() {
       showToast(t('deleteSuccess'), 'success');
       currentDoc = null;
       currentView = 'view';
-      document.getElementById('mainHeader').style.display = 'none';
+      document.getElementById('mainActions').style.display = 'none';
+      document.getElementById('mainTitle').textContent = '';
+      document.getElementById('versionBadge').textContent = '';
       document.getElementById('mainBody').innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
       await fetchDocs();
     } else {
@@ -1455,19 +1497,20 @@ async function showTrash() {
   currentView = 'trash';
   renderDocList();
 
-  const header = document.getElementById('mainHeader');
   const body = document.getElementById('mainBody');
-  header.style.display = 'flex';
   document.getElementById('mainTitle').textContent = t('trash');
   document.getElementById('versionBadge').textContent = '';
-  document.getElementById('mainActions').innerHTML = `
+  const actions = document.getElementById('mainActions');
+  actions.style.display = 'flex';
+  actions.innerHTML = `
     <button class="action-btn" id="btnBackToDocs">${t('backToDocs')}</button>
     <button class="action-btn danger" id="btnEmptyTrash">${t('emptyTrash')}</button>
   `;
 
   document.getElementById('btnBackToDocs').addEventListener('click', () => {
     currentView = 'view';
-    header.style.display = 'none';
+    actions.style.display = 'none';
+    document.getElementById('mainTitle').textContent = '';
     restoreMainActions();
     body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
     fetchDocs();
@@ -1702,6 +1745,11 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   window.location.href = '/login.html';
 });
 
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  applySidebar();
+});
+
 document.getElementById('themeBtn').addEventListener('click', () => {
   theme = theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark';
   applyTheme();
@@ -1754,6 +1802,7 @@ async function fetchConfig() {
 // ===== Init =====
 applyTheme();
 applyLang();
+applySidebar();
 fetchConfig();
 fetchDocs();
 </script>
