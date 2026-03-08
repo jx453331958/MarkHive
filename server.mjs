@@ -15,6 +15,7 @@ const PORT = parseInt(process.env.PORT || '3457');
 const API_KEY = process.env.API_KEY || '';
 const ENABLE_AUTH = process.env.ENABLE_AUTH !== 'false';
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'admin';
+const SITE_TITLE = process.env.SITE_TITLE || 'MarkHive';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -52,6 +53,19 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_revisions_doc_version
     ON revisions(document_id, version);
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS share_tokens (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
+  CREATE INDEX IF NOT EXISTS idx_share_tokens_doc ON share_tokens(document_id);
 `);
 
 // Migration: add deleted_at column if missing
@@ -98,6 +112,15 @@ const stmts = {
   getTrashDoc: db.prepare('SELECT * FROM documents WHERE id = ? AND deleted_at IS NOT NULL'),
   purgeDoc: db.prepare('DELETE FROM documents WHERE id = ? AND deleted_at IS NOT NULL'),
   purgeAllTrash: db.prepare('DELETE FROM documents WHERE deleted_at IS NOT NULL'),
+  createShare: db.prepare('INSERT INTO share_tokens (id, document_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)'),
+  getShareByToken: db.prepare(`
+    SELECT st.*, d.title, d.content, d.updated_at
+    FROM share_tokens st JOIN documents d ON st.document_id = d.id
+    WHERE st.token = ? AND d.deleted_at IS NULL
+  `),
+  listSharesByDoc: db.prepare('SELECT id, token, expires_at, created_at FROM share_tokens WHERE document_id = ? ORDER BY created_at DESC'),
+  deleteShare: db.prepare('DELETE FROM share_tokens WHERE id = ?'),
+  deleteExpiredShares: db.prepare('DELETE FROM share_tokens WHERE expires_at IS NOT NULL AND expires_at < ?'),
   maxVersion: db.prepare(
     'SELECT MAX(version) as v FROM revisions WHERE document_id = ?'
   ),
@@ -141,6 +164,7 @@ setInterval(() => {
   for (const [token, session] of SESSIONS) {
     if (now - session.createdAt > SESSION_MAX_AGE) SESSIONS.delete(token);
   }
+  stmts.deleteExpiredShares.run(new Date().toISOString());
 }, 60 * 60 * 1000);
 
 // ============================================================
@@ -404,6 +428,145 @@ function handlePurgeAllTrash(req, res) {
   sendJSON(res, 200, { ok: true });
 }
 
+// ============================================================
+// Config Handler
+// ============================================================
+function handleConfig(req, res) {
+  sendJSON(res, 200, { title: SITE_TITLE });
+}
+
+// ============================================================
+// Share Handlers
+// ============================================================
+function escapeHtmlServer(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function handleCreateShare(req, res, docId) {
+  const doc = stmts.getDocById.get(docId);
+  if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
+
+  const body = await readBody(req);
+  const expiresIn = body?.expires_in || 0; // minutes, 0 = permanent
+
+  const id = crypto.randomUUID();
+  const token = crypto.randomBytes(16).toString('hex');
+  const now = new Date().toISOString();
+  const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 60000).toISOString() : null;
+
+  stmts.createShare.run(id, docId, token, expiresAt, now);
+
+  const host = req.headers.host || `localhost:${PORT}`;
+  const proto = req.headers['x-forwarded-proto'] || 'http';
+  const shareUrl = `${proto}://${host}/share/${token}`;
+
+  sendJSON(res, 201, { id, token, url: shareUrl, expires_at: expiresAt, created_at: now });
+}
+
+function handleListShares(req, res, docId) {
+  const doc = stmts.getDocById.get(docId);
+  if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
+
+  const shares = stmts.listSharesByDoc.all(docId);
+  const host = req.headers.host || `localhost:${PORT}`;
+  const proto = req.headers['x-forwarded-proto'] || 'http';
+
+  const result = shares.map(s => ({
+    ...s,
+    url: `${proto}://${host}/share/${s.token}`,
+    expired: s.expires_at ? new Date(s.expires_at) < new Date() : false,
+  }));
+
+  sendJSON(res, 200, result);
+}
+
+function handleDeleteShare(req, res, shareId) {
+  stmts.deleteShare.run(shareId);
+  sendJSON(res, 200, { ok: true });
+}
+
+function handleGetShareDoc(req, res, token) {
+  const share = stmts.getShareByToken.get(token);
+  if (!share) return sendJSON(res, 404, { error: 'Share link not found' });
+
+  if (share.expires_at && new Date(share.expires_at) < new Date()) {
+    return sendJSON(res, 410, { error: 'Share link has expired' });
+  }
+
+  sendJSON(res, 200, { title: share.title, content: share.content, updated_at: share.updated_at });
+}
+
+function renderSharePage(share) {
+  const safeContent = JSON.stringify(share.content).replace(/</g, '\\u003c');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtmlServer(share.title)} - ${escapeHtmlServer(SITE_TITLE)}</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+:root{--bg:#0a0e14;--surface:#11151c;--elevated:#1a1f2e;--accent:#7c5cff;--text:#c8d0da;--text-bright:#e8ecf0;--text-muted:#5a6a7e;--border:#1e2530}
+@media(prefers-color-scheme:light){:root{--bg:#f5f6f8;--surface:#fff;--elevated:#f0f1f3;--accent:#6b4ce0;--text:#374151;--text-bright:#111827;--text-muted:#9ca3af;--border:#e5e7eb}}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.container{max-width:860px;margin:0 auto;padding:40px 24px}
+.header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border)}
+.header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700}
+.meta{font-size:13px;color:var(--text-muted)}
+.markdown-body{line-height:1.75}
+.markdown-body h1{font-size:28px;color:var(--text-bright);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:10px;font-weight:700}
+.markdown-body h2{font-size:22px;color:var(--text-bright);margin:28px 0 12px;font-weight:600}
+.markdown-body h3{font-size:18px;color:var(--text-bright);margin:24px 0 10px}
+.markdown-body p{margin:0 0 16px}
+.markdown-body a{color:var(--accent);text-decoration:none}
+.markdown-body code{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--elevated);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.markdown-body pre{background:var(--elevated);border:1px solid var(--border);border-radius:8px;padding:16px;margin:0 0 16px;overflow-x:auto}
+.markdown-body pre code{background:none;padding:0;color:var(--text)}
+.markdown-body blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:0 0 16px;background:rgba(124,92,255,.05);color:var(--text-muted)}
+.markdown-body ul,.markdown-body ol{padding-left:24px;margin:0 0 16px}
+.markdown-body li{margin:4px 0}
+.markdown-body table{width:100%;border-collapse:collapse;margin:0 0 16px}
+.markdown-body th,.markdown-body td{padding:8px 12px;border:1px solid var(--border)}
+.markdown-body th{background:var(--elevated);color:var(--text-bright)}
+.markdown-body img{max-width:100%;border-radius:8px}
+.markdown-body hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+</style>
+</head><body>
+<div class="container">
+<div class="header"><h1>${escapeHtmlServer(share.title)}</h1>
+<span class="meta">${escapeHtmlServer(SITE_TITLE)} &middot; ${new Date(share.updated_at).toLocaleDateString()}</span></div>
+<div class="markdown-body" id="content"></div>
+</div>
+<script>document.getElementById('content').innerHTML=marked.parse(${safeContent});</script>
+</body></html>`;
+}
+
+function renderShareErrorPage(expired) {
+  const title = expired ? 'Link Expired' : 'Not Found';
+  const code = expired ? '410' : '404';
+  const msg = expired ? 'This share link has expired.' : 'This share link does not exist.';
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title} - ${escapeHtmlServer(SITE_TITLE)}</title>
+<style>
+:root{--bg:#0a0e14;--text:#5a6a7e}
+@media(prefers-color-scheme:light){:root{--bg:#f5f6f8;--text:#9ca3af}}
+body{font-family:-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}
+h1{font-size:48px;margin-bottom:16px}p{font-size:16px}
+</style></head><body><div><h1>${code}</h1><p>${msg}</p></div></body></html>`;
+}
+
+function handleSharePage(req, res, token) {
+  const share = stmts.getShareByToken.get(token);
+  if (!share || (share.expires_at && new Date(share.expires_at) < new Date())) {
+    const html = renderShareErrorPage(share != null);
+    res.writeHead(share ? 410 : 404, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(html);
+  }
+  const html = renderSharePage(share);
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(html);
+}
+
 async function handleDocHistory(req, res, docId) {
   const doc = stmts.getDoc.get(docId);
   if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
@@ -493,9 +656,9 @@ function handleSkill(req, res) {
     ? `\nAuthentication: Bearer token via "Authorization: Bearer <API_KEY>" header.`
     : `\nAuthentication: None required (API_KEY not configured).`;
 
-  const skill = `# MarkHive API Skill
+  const skill = `# ${SITE_TITLE} API Skill
 
-MarkHive is an API-driven Markdown document management service with version history and diff.
+${SITE_TITLE} is an API-driven Markdown document management service with version history and diff.
 Base URL: ${base}
 ${authHeader}
 
@@ -559,6 +722,31 @@ GET ${base}/api/docs/<id>/diff?from=<v1>&to=<v2>
 Response: {doc_id, from_version, to_version, hunks: [{oldStart, oldLines, newStart, newLines, changes: [{type, value}]}], stats: {additions, deletions}}
 Change types: "context" (unchanged), "insert" (added), "delete" (removed)
 
+### Config (public, no auth)
+GET ${base}/api/config
+Response: {title}
+
+### Share - Create Share Link
+POST ${base}/api/docs/<id>/share
+Body: {"expires_in": 1440}  (minutes, 0 = permanent)
+Response: {id, token, url, expires_at, created_at}
+
+### Share - List Share Links
+GET ${base}/api/docs/<id>/shares
+Response: Array of {id, token, url, expires_at, expired, created_at}
+
+### Share - Delete Share Link
+DELETE ${base}/api/shares/<id>
+Response: {ok: true}
+
+### Share - Get Shared Document (public, no auth)
+GET ${base}/api/share/<token>
+Response: {title, content, updated_at}
+
+### Share - View Shared Document Page (public, no auth)
+GET ${base}/share/<token>
+Response: HTML page rendering the shared document
+
 ## Workflow Examples
 
 1. Create a doc: POST /api/docs with {"content": "# Title\\n\\nBody"}
@@ -608,6 +796,13 @@ async function handleRequest(req, res) {
     if (pathname === '/api/logout' && method === 'POST') return handleLogout(req, res);
     if (pathname === '/api/me' && method === 'GET') return handleMe(req, res);
 
+    // Public config
+    if (pathname === '/api/config' && method === 'GET') return handleConfig(req, res);
+
+    // Public share document API
+    const publicShareMatch = pathname.match(/^\/api\/share\/([a-f0-9]+)$/);
+    if (publicShareMatch && method === 'GET') return handleGetShareDoc(req, res, publicShareMatch[1]);
+
     // API routes
     if (pathname.startsWith('/api/')) {
       if (!requireAuth(req)) return sendJSON(res, 401, { error: 'Unauthorized' });
@@ -624,6 +819,14 @@ async function handleRequest(req, res) {
         if (method === 'POST') return handleRestoreDoc(req, res, docId);
         if (method === 'DELETE') return handlePurgeDoc(req, res, docId);
       }
+
+      // Share management
+      const shareCreateMatch = pathname.match(/^\/api\/docs\/([^/]+)\/share$/);
+      if (shareCreateMatch && method === 'POST') return handleCreateShare(req, res, shareCreateMatch[1]);
+      const shareListMatch = pathname.match(/^\/api\/docs\/([^/]+)\/shares$/);
+      if (shareListMatch && method === 'GET') return handleListShares(req, res, shareListMatch[1]);
+      const shareDeleteMatch = pathname.match(/^\/api\/shares\/([^/]+)$/);
+      if (shareDeleteMatch && method === 'DELETE') return handleDeleteShare(req, res, shareDeleteMatch[1]);
 
       // /api/docs/:id
       const docMatch = pathname.match(/^\/api\/docs\/([^/]+)$/);
@@ -648,6 +851,10 @@ async function handleRequest(req, res) {
 
       return sendJSON(res, 404, { error: 'Not found' });
     }
+
+    // Share page (public)
+    const sharePageMatch = pathname.match(/^\/share\/([a-f0-9]+)$/);
+    if (sharePageMatch && method === 'GET') return handleSharePage(req, res, sharePageMatch[1]);
 
     // Frontend routes
     if (pathname === '/' || pathname === '/index.html') {

@@ -28,6 +28,23 @@
   --sidebar-w: 280px;
   --header-h: 52px;
 }
+[data-theme="light"] {
+  --bg-deep: #f5f6f8;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0f1f4;
+  --bg-hover: #e8eaef;
+  --accent: #6b4ce0;
+  --accent-dim: #5a3cc8;
+  --text: #374151;
+  --text-bright: #111827;
+  --text-muted: #9ca3af;
+  --border: #e5e7eb;
+  --green: #16a34a;
+  --green-bg: rgba(22,163,74,.08);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,.08);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #d1d5db; }
 html, body { height: 100%; }
 body {
   font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -571,6 +588,67 @@ body {
 .toast.success { border-color: var(--green); color: var(--green); }
 .toast.error { border-color: var(--red); color: var(--red); }
 
+/* ===== Share Dialog ===== */
+.share-form { display: flex; gap: 8px; margin-bottom: 16px; }
+.share-select {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.share-generate {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.share-generate:hover { background: var(--accent-dim); }
+.share-link-list { max-height: 240px; overflow-y: auto; }
+.share-link-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.share-link-url {
+  flex: 1;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.share-link-expiry {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.share-link-expired { color: var(--red); }
+.share-link-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.share-link-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.share-link-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.share-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 16px; }
+
 /* ===== Mobile Menu ===== */
 .mobile-toggle {
   display: none;
@@ -648,6 +726,7 @@ body {
         <button class="sort-btn" data-sort="title" id="sortTitle"></button>
       </div>
       <div class="footer-right">
+        <button class="sort-btn" id="themeBtn"></button>
         <button class="sort-btn" id="trashBtn" title="">&#128465;</button>
         <button class="lang-btn" id="langBtn"></button>
         <button class="logout-btn" id="logoutBtn"></button>
@@ -667,6 +746,7 @@ body {
         <button class="action-btn" id="btnEdit"></button>
         <button class="action-btn" id="btnHistory"></button>
         <button class="action-btn" id="btnRaw"></button>
+        <button class="action-btn" id="btnShare"></button>
         <button class="action-btn danger" id="btnDelete"></button>
       </div>
     </div>
@@ -740,6 +820,26 @@ const i18n = {
     confirmPurge: '彻底删除',
     confirmEmptyTrash: '清空',
     backToDocs: '返回文档列表',
+    share: '分享',
+    shareTitle: '分享文档',
+    shareExpiry1h: '1小时',
+    shareExpiry24h: '24小时',
+    shareExpiry7d: '7天',
+    shareExpiry30d: '30天',
+    shareExpiryForever: '永久有效',
+    shareGenerate: '生成链接',
+    shareCopy: '复制',
+    shareCopied: '已复制',
+    shareRevoke: '撤销',
+    shareNoLinks: '暂无分享链接',
+    shareCreated: '链接已生成',
+    shareFailed: '生成失败',
+    shareRevoked: '已撤销',
+    shareExpired: '已过期',
+    shareClose: '关闭',
+    sharePermanent: '永久',
+    themeLight: '浅色',
+    themeDark: '深色',
   },
   en: {
     searchPlaceholder: 'Search documents...',
@@ -802,6 +902,26 @@ const i18n = {
     confirmPurge: 'Delete',
     confirmEmptyTrash: 'Empty',
     backToDocs: 'Back to documents',
+    share: 'Share',
+    shareTitle: 'Share Document',
+    shareExpiry1h: '1 hour',
+    shareExpiry24h: '24 hours',
+    shareExpiry7d: '7 days',
+    shareExpiry30d: '30 days',
+    shareExpiryForever: 'Never expires',
+    shareGenerate: 'Generate Link',
+    shareCopy: 'Copy',
+    shareCopied: 'Copied',
+    shareRevoke: 'Revoke',
+    shareNoLinks: 'No share links yet',
+    shareCreated: 'Link created',
+    shareFailed: 'Failed to create',
+    shareRevoked: 'Link revoked',
+    shareExpired: 'Expired',
+    shareClose: 'Close',
+    sharePermanent: 'Permanent',
+    themeLight: 'Light',
+    themeDark: 'Dark',
   }
 };
 
@@ -812,9 +932,18 @@ let currentView = 'view'; // view | edit | history | diff | version
 let sortMode = 'time-desc';
 let searchQuery = '';
 let lang = localStorage.getItem('markhive-lang') || 'zh';
+let theme = localStorage.getItem('markhive-theme') || 'dark';
 let isNewDoc = false;
 
 function t(key) { return i18n[lang][key] || key; }
+
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('markhive-theme', theme);
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = theme === 'dark' ? '\u263E' : '\u2600';
+  btn.title = theme === 'dark' ? t('themeLight') : t('themeDark');
+}
 
 function applyLang() {
   localStorage.setItem('markhive-lang', lang);
@@ -832,8 +961,10 @@ function applyLang() {
     document.getElementById('btnEdit').textContent = t('edit');
     document.getElementById('btnHistory').textContent = t('history');
     document.getElementById('btnRaw').textContent = t('raw');
+    document.getElementById('btnShare').textContent = t('share');
     document.getElementById('btnDelete').textContent = t('delete');
   }
+  applyTheme();
   const empty = document.getElementById('emptyState');
   if (empty) empty.textContent = t('selectDoc');
 }
@@ -1401,12 +1532,107 @@ async function showTrash() {
   });
 }
 
+// ===== Share Dialog =====
+async function showShareDialog() {
+  if (!currentDoc) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay';
+  overlay.innerHTML = `
+    <div class="dialog-box" style="width:480px">
+      <div class="dialog-title">${t('shareTitle')}</div>
+      <div class="share-form">
+        <select class="share-select" id="shareExpiry">
+          <option value="60">${t('shareExpiry1h')}</option>
+          <option value="1440" selected>${t('shareExpiry24h')}</option>
+          <option value="10080">${t('shareExpiry7d')}</option>
+          <option value="43200">${t('shareExpiry30d')}</option>
+          <option value="0">${t('shareExpiryForever')}</option>
+        </select>
+        <button class="share-generate" id="shareGenerate">${t('shareGenerate')}</button>
+      </div>
+      <div class="share-link-list" id="shareLinkList">
+        <div class="share-empty">${t('shareNoLinks')}</div>
+      </div>
+      <div class="dialog-btns" style="margin-top:16px">
+        <button class="dialog-btn-cancel" id="shareClose">${t('shareClose')}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  async function loadShares() {
+    const res = await api(`/api/docs/${currentDoc.id}/shares`);
+    if (!res) return;
+    const shares = await res.json();
+    const list = document.getElementById('shareLinkList');
+    if (!shares.length) {
+      list.innerHTML = `<div class="share-empty">${t('shareNoLinks')}</div>`;
+      return;
+    }
+    list.innerHTML = shares.map(s => {
+      const isExpired = s.expired;
+      const expiryText = isExpired
+        ? `<span class="share-link-expired">${t('shareExpired')}</span>`
+        : (s.expires_at ? new Date(s.expires_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US') : t('sharePermanent'));
+      return `
+        <div class="share-link-item${isExpired ? ' expired' : ''}">
+          <span class="share-link-url" title="${escapeHtml(s.url)}">${escapeHtml(s.url)}</span>
+          <span class="share-link-expiry">${expiryText}</span>
+          ${!isExpired ? `<button class="share-link-btn" data-action="copy" data-url="${escapeHtml(s.url)}">${t('shareCopy')}</button>` : ''}
+          <button class="share-link-btn danger" data-action="revoke" data-id="${s.id}">${t('shareRevoke')}</button>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-action="copy"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(btn.dataset.url);
+          btn.textContent = t('shareCopied');
+          setTimeout(() => btn.textContent = t('shareCopy'), 1500);
+        } catch { showToast('Copy failed', 'error'); }
+      });
+    });
+    list.querySelectorAll('[data-action="revoke"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const r = await api(`/api/shares/${btn.dataset.id}`, { method: 'DELETE' });
+        if (r && r.ok) {
+          showToast(t('shareRevoked'), 'success');
+          loadShares();
+        }
+      });
+    });
+  }
+
+  overlay.querySelector('#shareGenerate').addEventListener('click', async () => {
+    const expiresIn = parseInt(document.getElementById('shareExpiry').value);
+    const r = await api(`/api/docs/${currentDoc.id}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expires_in: expiresIn })
+    });
+    if (r && r.ok) {
+      showToast(t('shareCreated'), 'success');
+      loadShares();
+    } else {
+      showToast(t('shareFailed'), 'error');
+    }
+  });
+
+  overlay.querySelector('#shareClose').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  loadShares();
+}
+
 function restoreMainActions() {
   document.getElementById('mainActions').innerHTML = `
     <button class="action-btn" id="btnView">${t('view')}</button>
     <button class="action-btn" id="btnEdit">${t('edit')}</button>
     <button class="action-btn" id="btnHistory">${t('history')}</button>
     <button class="action-btn" id="btnRaw">${t('raw')}</button>
+    <button class="action-btn" id="btnShare">${t('share')}</button>
     <button class="action-btn danger" id="btnDelete">${t('delete')}</button>
   `;
   bindMainActions();
@@ -1432,6 +1658,9 @@ function bindMainActions() {
     a.download = `${currentDoc.title}.md`;
     a.click();
     URL.revokeObjectURL(url);
+  });
+  document.getElementById('btnShare').addEventListener('click', () => {
+    if (currentDoc) showShareDialog();
   });
   document.getElementById('btnDelete').addEventListener('click', handleDelete);
 }
@@ -1463,6 +1692,11 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   window.location.href = '/login.html';
 });
 
+document.getElementById('themeBtn').addEventListener('click', () => {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+});
+
 document.getElementById('langBtn').addEventListener('click', () => {
   lang = lang === 'zh' ? 'en' : 'zh';
   applyLang();
@@ -1488,8 +1722,24 @@ document.getElementById('mobileToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
 });
 
+// ===== Config =====
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const config = await res.json();
+      if (config.title) {
+        document.title = config.title;
+        document.querySelector('.sidebar-header h1').textContent = config.title;
+      }
+    }
+  } catch {}
+}
+
 // ===== Init =====
+applyTheme();
 applyLang();
+fetchConfig();
 fetchDocs();
 </script>
 </body>
