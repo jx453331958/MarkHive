@@ -213,7 +213,17 @@ function extractTitle(content, fallback = 'Untitled') {
 function requireApiAuth(req) {
   if (!API_KEY) return true;
   const auth = req.headers.authorization || '';
-  return auth.startsWith('Bearer ') && auth.slice(7) === API_KEY;
+  // Bearer token
+  if (auth.startsWith('Bearer ') && auth.slice(7) === API_KEY) return true;
+  // Basic Auth (username ignored, password = API_KEY)
+  if (auth.startsWith('Basic ')) {
+    try {
+      const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+      const password = decoded.includes(':') ? decoded.split(':').slice(1).join(':') : decoded;
+      if (password === API_KEY) return true;
+    } catch {}
+  }
+  return false;
 }
 
 function requireSessionAuth(req) {
@@ -653,7 +663,7 @@ function handleSkill(req, res) {
   const host = req.headers.host || `localhost:${PORT}`;
   const base = `http://${host}`;
   const authHeader = API_KEY
-    ? `\nAuthentication: Bearer token via "Authorization: Bearer <API_KEY>" header.`
+    ? `\nAuthentication: Bearer token via "Authorization: Bearer <API_KEY>" header, or Basic Auth via "Authorization: Basic base64(user:API_KEY)" header (username is ignored).`
     : `\nAuthentication: None required (API_KEY not configured).`;
 
   const skill = `# ${SITE_TITLE} API Skill
