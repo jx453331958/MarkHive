@@ -979,6 +979,78 @@ function applySidebar() {
   document.getElementById('sidebarToggle').title = t('toggleSidebar');
 }
 
+// ===== Router =====
+function navigate(hash, replace = false) {
+  if (replace) {
+    history.replaceState(null, '', hash);
+    handleRoute();
+  } else {
+    location.hash = hash;
+  }
+}
+
+function showHome() {
+  const fromTrash = currentView === 'trash';
+  if (fromTrash) restoreMainActions();
+  currentDoc = null;
+  isNewDoc = false;
+  currentView = 'view';
+  document.getElementById('mainActions').style.display = 'none';
+  document.getElementById('mainTitle').textContent = '';
+  document.getElementById('versionBadge').textContent = '';
+  document.getElementById('mainBody').innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
+  renderDocList();
+  if (fromTrash) fetchDocs();
+}
+
+async function loadDoc(id, action, ...args) {
+  if (!currentDoc || currentDoc.id !== id) {
+    const doc = await fetchDoc(id);
+    if (!doc) { navigate('#/', true); return; }
+    currentDoc = doc;
+    isNewDoc = false;
+    if (currentView === 'trash') restoreMainActions();
+    renderDocList();
+  }
+  document.getElementById('sidebar').classList.remove('open');
+  switch (action) {
+    case 'view': showDocView(); break;
+    case 'edit': showEditor(currentDoc); break;
+    case 'history': showHistory(); break;
+    case 'version': showVersion(args[0]); break;
+    case 'diff': showDiff(args[0], args[1]); break;
+  }
+}
+
+function handleRoute() {
+  const hash = (location.hash || '#/').slice(1);
+  let m;
+  if ((m = hash.match(/^\/doc\/([^/]+)\/edit$/))) {
+    loadDoc(m[1], 'edit');
+  } else if ((m = hash.match(/^\/doc\/([^/]+)\/history$/))) {
+    loadDoc(m[1], 'history');
+  } else if ((m = hash.match(/^\/doc\/([^/]+)\/version\/(\d+)$/))) {
+    loadDoc(m[1], 'version', parseInt(m[2]));
+  } else if ((m = hash.match(/^\/doc\/([^/]+)\/diff\/(\d+)\/(\d+)$/))) {
+    loadDoc(m[1], 'diff', parseInt(m[2]), parseInt(m[3]));
+  } else if ((m = hash.match(/^\/doc\/([^/]+)$/))) {
+    loadDoc(m[1], 'view');
+  } else if (hash === '/trash') {
+    showTrash();
+  } else if (hash === '/new') {
+    if (currentView === 'trash') restoreMainActions();
+    currentDoc = null;
+    isNewDoc = true;
+    renderDocList();
+    showEditor(null);
+    document.getElementById('sidebar').classList.remove('open');
+  } else {
+    showHome();
+  }
+}
+
+window.addEventListener('hashchange', handleRoute);
+
 function getEffectiveTheme() {
   if (theme === 'auto') return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   return theme;
@@ -1143,17 +1215,8 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function selectDoc(id) {
-  const doc = await fetchDoc(id);
-  if (!doc) return;
-  currentDoc = doc;
-  isNewDoc = false;
-  // Restore main action buttons if coming from trash view
-  if (currentView === 'trash') restoreMainActions();
-  currentView = 'view';
-  renderDocList();
-  showDocView();
-  document.getElementById('sidebar').classList.remove('open');
+function selectDoc(id) {
+  navigate('#/doc/' + id);
 }
 
 function showDocView() {
@@ -1248,14 +1311,9 @@ function showEditor(doc) {
 
   document.getElementById('editorCancel').addEventListener('click', () => {
     if (isNewDoc) {
-      currentDoc = null;
-      isNewDoc = false;
-      document.getElementById('mainActions').style.display = 'none';
-      document.getElementById('mainTitle').textContent = '';
-      document.getElementById('versionBadge').textContent = '';
-      body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
+      navigate('#/');
     } else if (currentDoc) {
-      showDocView();
+      navigate('#/doc/' + currentDoc.id);
     }
   });
 
@@ -1300,7 +1358,7 @@ async function handleSave() {
       showToast(t('saveSuccess'), 'success');
       isNewDoc = false;
       await fetchDocs();
-      await selectDoc(result.id);
+      navigate('#/doc/' + result.id, true);
     } else {
       showToast(t('saveFailed'), 'error');
       saveBtn.textContent = t('save');
@@ -1319,13 +1377,8 @@ async function handleDelete() {
     const res = await api(`/api/docs/${currentDoc.id}`, { method: 'DELETE' });
     if (res && res.ok) {
       showToast(t('deleteSuccess'), 'success');
-      currentDoc = null;
-      currentView = 'view';
-      document.getElementById('mainActions').style.display = 'none';
-      document.getElementById('mainTitle').textContent = '';
-      document.getElementById('versionBadge').textContent = '';
-      document.getElementById('mainBody').innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
       await fetchDocs();
+      navigate('#/', true);
     } else {
       showToast(t('deleteFailed'), 'error');
     }
@@ -1378,10 +1431,10 @@ async function showHistory() {
   `;
 
   body.querySelectorAll('[data-action="view-version"]').forEach(btn => {
-    btn.addEventListener('click', () => showVersion(parseInt(btn.dataset.version)));
+    btn.addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/version/' + btn.dataset.version));
   });
   body.querySelectorAll('[data-action="diff"]').forEach(btn => {
-    btn.addEventListener('click', () => showDiff(parseInt(btn.dataset.from), parseInt(btn.dataset.to)));
+    btn.addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/diff/' + btn.dataset.from + '/' + btn.dataset.to));
   });
 }
 
@@ -1410,8 +1463,8 @@ async function showVersion(version) {
     </div>
   `;
 
-  document.getElementById('backToCurrentBtn').addEventListener('click', showDocView);
-  document.getElementById('backToHistoryBtn').addEventListener('click', showHistory);
+  document.getElementById('backToCurrentBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id));
+  document.getElementById('backToHistoryBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/history'));
 }
 
 async function showDiff(from, to) {
@@ -1435,7 +1488,7 @@ async function showDiff(from, to) {
         <div class="diff-no-changes">${t('noChanges')}</div>
       </div>
     `;
-    document.getElementById('backToHistoryBtn2').addEventListener('click', showHistory);
+    document.getElementById('backToHistoryBtn2').addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/history'));
     return;
   }
 
@@ -1455,7 +1508,7 @@ async function showDiff(from, to) {
     </div>
   `;
 
-  document.getElementById('backToHistoryBtn3').addEventListener('click', showHistory);
+  document.getElementById('backToHistoryBtn3').addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/history'));
 }
 
 function renderHunk(hunk) {
@@ -1507,14 +1560,7 @@ async function showTrash() {
     <button class="action-btn danger" id="btnEmptyTrash">${t('emptyTrash')}</button>
   `;
 
-  document.getElementById('btnBackToDocs').addEventListener('click', () => {
-    currentView = 'view';
-    actions.style.display = 'none';
-    document.getElementById('mainTitle').textContent = '';
-    restoreMainActions();
-    body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
-    fetchDocs();
-  });
+  document.getElementById('btnBackToDocs').addEventListener('click', () => navigate('#/'));
 
   const res = await api('/api/trash');
   if (!res) return;
@@ -1693,14 +1739,14 @@ function restoreMainActions() {
 
 function bindMainActions() {
   document.getElementById('btnView').addEventListener('click', () => {
-    if (currentDoc && currentView !== 'view') showDocView();
+    if (currentDoc && currentView !== 'view') navigate('#/doc/' + currentDoc.id);
   });
   document.getElementById('btnEdit').addEventListener('click', () => {
-    if (currentDoc && currentView !== 'edit') showEditor(currentDoc);
-    else if (isNewDoc) showEditor(null);
+    if (currentDoc && currentView !== 'edit') navigate('#/doc/' + currentDoc.id + '/edit');
+    else if (isNewDoc) navigate('#/new');
   });
   document.getElementById('btnHistory').addEventListener('click', () => {
-    if (currentDoc && currentView !== 'history') showHistory();
+    if (currentDoc && currentView !== 'history') navigate('#/doc/' + currentDoc.id + '/history');
   });
   document.getElementById('btnRaw').addEventListener('click', () => {
     if (!currentDoc) return;
@@ -1769,17 +1815,11 @@ document.getElementById('langBtn').addEventListener('click', () => {
   if (empty) empty.textContent = t('selectDoc');
 });
 
-document.getElementById('newDocBtn').addEventListener('click', () => {
-  currentDoc = null;
-  isNewDoc = true;
-  renderDocList();
-  showEditor(null);
-  document.getElementById('sidebar').classList.remove('open');
-});
+document.getElementById('newDocBtn').addEventListener('click', () => navigate('#/new'));
 
 bindMainActions();
 
-document.getElementById('trashBtn').addEventListener('click', showTrash);
+document.getElementById('trashBtn').addEventListener('click', () => navigate('#/trash'));
 
 document.getElementById('mobileToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
@@ -1804,7 +1844,7 @@ applyTheme();
 applyLang();
 applySidebar();
 fetchConfig();
-fetchDocs();
+fetchDocs().then(handleRoute);
 </script>
 </body>
 </html>
