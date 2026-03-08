@@ -541,7 +541,7 @@ async function handleRequest(req, res) {
     if (pathname === '/health') return sendJSON(res, 200, { status: 'ok' });
 
     // Skill (no auth required - for agent discovery)
-    if (pathname === '/api/skill' && method === 'GET') return handleSkill(req, res);
+    if ((pathname === '/skill' || pathname === '/api/skill') && method === 'GET') return handleSkill(req, res);
 
     // Auth routes
     if (pathname === '/api/login' && method === 'POST') return handleLogin(req, res);
