@@ -648,6 +648,7 @@ body {
         <button class="sort-btn" data-sort="title" id="sortTitle"></button>
       </div>
       <div class="footer-right">
+        <button class="sort-btn" id="trashBtn" title="">&#128465;</button>
         <button class="lang-btn" id="langBtn"></button>
         <button class="logout-btn" id="logoutBtn"></button>
       </div>
@@ -721,6 +722,24 @@ const i18n = {
     chars: '字符',
     lines: '行',
     newDocTitle: '新建文档',
+    trash: '回收站',
+    trashEmpty: '回收站为空',
+    restore: '恢复',
+    purge: '彻底删除',
+    emptyTrash: '清空回收站',
+    restoreSuccess: '文档已恢复',
+    restoreFailed: '恢复失败',
+    purgeSuccess: '已彻底删除',
+    purgeFailed: '删除失败',
+    purgeTitle: '确认彻底删除',
+    purgeMsg: '确定要彻底删除这篇文档吗？此操作不可恢复。',
+    emptyTrashTitle: '确认清空回收站',
+    emptyTrashMsg: '确定要清空回收站中的所有文档吗？此操作不可恢复。',
+    emptyTrashSuccess: '回收站已清空',
+    deletedAt: '删除于',
+    confirmPurge: '彻底删除',
+    confirmEmptyTrash: '清空',
+    backToDocs: '返回文档列表',
   },
   en: {
     searchPlaceholder: 'Search documents...',
@@ -765,6 +784,24 @@ const i18n = {
     chars: 'chars',
     lines: 'lines',
     newDocTitle: 'New Document',
+    trash: 'Trash',
+    trashEmpty: 'Trash is empty',
+    restore: 'Restore',
+    purge: 'Permanently Delete',
+    emptyTrash: 'Empty Trash',
+    restoreSuccess: 'Document restored',
+    restoreFailed: 'Failed to restore',
+    purgeSuccess: 'Permanently deleted',
+    purgeFailed: 'Failed to delete',
+    purgeTitle: 'Confirm Permanent Delete',
+    purgeMsg: 'Are you sure you want to permanently delete this document? This cannot be undone.',
+    emptyTrashTitle: 'Confirm Empty Trash',
+    emptyTrashMsg: 'Are you sure you want to permanently delete all trashed documents? This cannot be undone.',
+    emptyTrashSuccess: 'Trash emptied',
+    deletedAt: 'Deleted',
+    confirmPurge: 'Delete',
+    confirmEmptyTrash: 'Empty',
+    backToDocs: 'Back to documents',
   }
 };
 
@@ -787,11 +824,16 @@ function applyLang() {
   document.getElementById('logoutBtn').textContent = t('logout');
   document.getElementById('langBtn').textContent = t('langSwitch');
   document.getElementById('newDocBtn').title = t('newDoc');
-  document.getElementById('btnView').textContent = t('view');
-  document.getElementById('btnEdit').textContent = t('edit');
-  document.getElementById('btnHistory').textContent = t('history');
-  document.getElementById('btnRaw').textContent = t('raw');
-  document.getElementById('btnDelete').textContent = t('delete');
+  document.getElementById('trashBtn').title = t('trash');
+  // Only update main action buttons if they exist (not in trash view)
+  const btnView = document.getElementById('btnView');
+  if (btnView) {
+    btnView.textContent = t('view');
+    document.getElementById('btnEdit').textContent = t('edit');
+    document.getElementById('btnHistory').textContent = t('history');
+    document.getElementById('btnRaw').textContent = t('raw');
+    document.getElementById('btnDelete').textContent = t('delete');
+  }
   const empty = document.getElementById('emptyState');
   if (empty) empty.textContent = t('selectDoc');
 }
@@ -848,7 +890,8 @@ function showToast(msg, type = '') {
 }
 
 // ===== Confirm Dialog =====
-function showConfirm(title, msg, onConfirm) {
+function showConfirm(title, msg, onConfirm, confirmText) {
+  const btnText = confirmText || t('confirmDelete');
   const overlay = document.createElement('div');
   overlay.className = 'dialog-overlay';
   overlay.innerHTML = `
@@ -857,7 +900,7 @@ function showConfirm(title, msg, onConfirm) {
       <div class="dialog-msg">${escapeHtml(msg)}</div>
       <div class="dialog-btns">
         <button class="dialog-btn-cancel" id="dialogCancel">${t('cancelBtn')}</button>
-        <button class="dialog-btn-danger" id="dialogConfirm">${t('confirmDelete')}</button>
+        <button class="dialog-btn-danger" id="dialogConfirm">${escapeHtml(btnText)}</button>
       </div>
     </div>
   `;
@@ -923,6 +966,8 @@ async function selectDoc(id) {
   if (!doc) return;
   currentDoc = doc;
   isNewDoc = false;
+  // Restore main action buttons if coming from trash view
+  if (currentView === 'trash') restoreMainActions();
   currentView = 'view';
   renderDocList();
   showDocView();
@@ -1262,6 +1307,135 @@ function renderHunk(hunk) {
   `;
 }
 
+// ===== Trash View =====
+async function showTrash() {
+  currentDoc = null;
+  isNewDoc = false;
+  currentView = 'trash';
+  renderDocList();
+
+  const header = document.getElementById('mainHeader');
+  const body = document.getElementById('mainBody');
+  header.style.display = 'flex';
+  document.getElementById('mainTitle').textContent = t('trash');
+  document.getElementById('versionBadge').textContent = '';
+  document.getElementById('mainActions').innerHTML = `
+    <button class="action-btn" id="btnBackToDocs">${t('backToDocs')}</button>
+    <button class="action-btn danger" id="btnEmptyTrash">${t('emptyTrash')}</button>
+  `;
+
+  document.getElementById('btnBackToDocs').addEventListener('click', () => {
+    currentView = 'view';
+    header.style.display = 'none';
+    restoreMainActions();
+    body.innerHTML = `<div class="empty-state" id="emptyState">${t('selectDoc')}</div>`;
+    fetchDocs();
+  });
+
+  const res = await api('/api/trash');
+  if (!res) return;
+  const trashDocs = await res.json();
+
+  if (trashDocs.length === 0) {
+    body.innerHTML = `<div class="empty-state">${t('trashEmpty')}</div>`;
+    return;
+  }
+
+  document.getElementById('btnEmptyTrash').addEventListener('click', () => {
+    showConfirm(t('emptyTrashTitle'), t('emptyTrashMsg'), async () => {
+      const r = await api('/api/trash', { method: 'DELETE' });
+      if (r && r.ok) {
+        showToast(t('emptyTrashSuccess'), 'success');
+        showTrash();
+      }
+    }, t('confirmEmptyTrash'));
+  });
+
+  body.innerHTML = `
+    <div class="history-view">
+      <ul class="revision-list">
+        ${trashDocs.map(doc => `
+          <li class="revision-item">
+            <div class="revision-left">
+              <div>
+                <span class="revision-msg" style="font-weight:600;color:var(--text-bright)">${escapeHtml(doc.title)}</span>
+                <span style="font-size:12px;color:var(--text-muted);margin-left:8px">v${doc.version}</span>
+              </div>
+              <div class="revision-time">${t('deletedAt')} ${new Date(doc.deleted_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}</div>
+            </div>
+            <div class="revision-right">
+              <button class="rev-btn" data-action="restore" data-id="${doc.id}">${t('restore')}</button>
+              <button class="rev-btn" data-action="purge" data-id="${doc.id}" style="color:var(--red)">${t('purge')}</button>
+            </div>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+  `;
+
+  body.querySelectorAll('[data-action="restore"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const r = await api(`/api/trash/${btn.dataset.id}`, { method: 'POST' });
+      if (r && r.ok) {
+        showToast(t('restoreSuccess'), 'success');
+        showTrash();
+        fetchDocs();
+      } else {
+        showToast(t('restoreFailed'), 'error');
+      }
+    });
+  });
+
+  body.querySelectorAll('[data-action="purge"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showConfirm(t('purgeTitle'), t('purgeMsg'), async () => {
+        const r = await api(`/api/trash/${btn.dataset.id}`, { method: 'DELETE' });
+        if (r && r.ok) {
+          showToast(t('purgeSuccess'), 'success');
+          showTrash();
+        } else {
+          showToast(t('purgeFailed'), 'error');
+        }
+      }, t('confirmPurge'));
+    });
+  });
+}
+
+function restoreMainActions() {
+  document.getElementById('mainActions').innerHTML = `
+    <button class="action-btn" id="btnView">${t('view')}</button>
+    <button class="action-btn" id="btnEdit">${t('edit')}</button>
+    <button class="action-btn" id="btnHistory">${t('history')}</button>
+    <button class="action-btn" id="btnRaw">${t('raw')}</button>
+    <button class="action-btn danger" id="btnDelete">${t('delete')}</button>
+  `;
+  bindMainActions();
+}
+
+function bindMainActions() {
+  document.getElementById('btnView').addEventListener('click', () => {
+    if (currentDoc && currentView !== 'view') showDocView();
+  });
+  document.getElementById('btnEdit').addEventListener('click', () => {
+    if (currentDoc && currentView !== 'edit') showEditor(currentDoc);
+    else if (isNewDoc) showEditor(null);
+  });
+  document.getElementById('btnHistory').addEventListener('click', () => {
+    if (currentDoc && currentView !== 'history') showHistory();
+  });
+  document.getElementById('btnRaw').addEventListener('click', () => {
+    if (!currentDoc) return;
+    const blob = new Blob([currentDoc.content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentDoc.title}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('btnDelete').addEventListener('click', handleDelete);
+}
+
 // ===== Event Handlers =====
 document.getElementById('searchInput').addEventListener('input', e => {
   searchQuery = e.target.value.trim();
@@ -1306,27 +1480,9 @@ document.getElementById('newDocBtn').addEventListener('click', () => {
   document.getElementById('sidebar').classList.remove('open');
 });
 
-document.getElementById('btnView').addEventListener('click', () => {
-  if (currentDoc && currentView !== 'view') showDocView();
-});
-document.getElementById('btnEdit').addEventListener('click', () => {
-  if (currentDoc && currentView !== 'edit') showEditor(currentDoc);
-  else if (isNewDoc) showEditor(null);
-});
-document.getElementById('btnHistory').addEventListener('click', () => {
-  if (currentDoc && currentView !== 'history') showHistory();
-});
-document.getElementById('btnRaw').addEventListener('click', () => {
-  if (!currentDoc) return;
-  const blob = new Blob([currentDoc.content], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${currentDoc.title}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-document.getElementById('btnDelete').addEventListener('click', handleDelete);
+bindMainActions();
+
+document.getElementById('trashBtn').addEventListener('click', showTrash);
 
 document.getElementById('mobileToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');

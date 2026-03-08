@@ -54,26 +54,33 @@ db.exec(`
     ON revisions(document_id, version);
 `);
 
+// Migration: add deleted_at column if missing
+try {
+  db.prepare('SELECT deleted_at FROM documents LIMIT 0').run();
+} catch {
+  db.exec('ALTER TABLE documents ADD COLUMN deleted_at TEXT DEFAULT NULL');
+}
+
 // Prepared statements
 const stmts = {
   listDocs: db.prepare(`
     SELECT d.id, d.title, d.created_at, d.updated_at,
       (SELECT MAX(version) FROM revisions WHERE document_id = d.id) as version
-    FROM documents d ORDER BY d.updated_at DESC
+    FROM documents d WHERE d.deleted_at IS NULL ORDER BY d.updated_at DESC
   `),
   searchDocs: db.prepare(`
     SELECT d.id, d.title, d.created_at, d.updated_at,
       (SELECT MAX(version) FROM revisions WHERE document_id = d.id) as version
     FROM documents d
-    WHERE d.title LIKE ? OR d.content LIKE ?
+    WHERE d.deleted_at IS NULL AND (d.title LIKE ? OR d.content LIKE ?)
     ORDER BY d.updated_at DESC
   `),
   getDoc: db.prepare(`
     SELECT d.id, d.title, d.content, d.created_at, d.updated_at,
       (SELECT MAX(version) FROM revisions WHERE document_id = d.id) as version
-    FROM documents d WHERE d.id = ?
+    FROM documents d WHERE d.id = ? AND d.deleted_at IS NULL
   `),
-  getDocById: db.prepare('SELECT * FROM documents WHERE id = ?'),
+  getDocById: db.prepare('SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL'),
   insertDoc: db.prepare(`
     INSERT INTO documents (id, title, content, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
@@ -81,7 +88,16 @@ const stmts = {
   updateDoc: db.prepare(`
     UPDATE documents SET title = ?, content = ?, updated_at = ? WHERE id = ?
   `),
-  deleteDoc: db.prepare('DELETE FROM documents WHERE id = ?'),
+  softDeleteDoc: db.prepare('UPDATE documents SET deleted_at = ? WHERE id = ?'),
+  listTrash: db.prepare(`
+    SELECT d.id, d.title, d.created_at, d.updated_at, d.deleted_at,
+      (SELECT MAX(version) FROM revisions WHERE document_id = d.id) as version
+    FROM documents d WHERE d.deleted_at IS NOT NULL ORDER BY d.deleted_at DESC
+  `),
+  restoreDoc: db.prepare('UPDATE documents SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL'),
+  getTrashDoc: db.prepare('SELECT * FROM documents WHERE id = ? AND deleted_at IS NOT NULL'),
+  purgeDoc: db.prepare('DELETE FROM documents WHERE id = ? AND deleted_at IS NOT NULL'),
+  purgeAllTrash: db.prepare('DELETE FROM documents WHERE deleted_at IS NOT NULL'),
   maxVersion: db.prepare(
     'SELECT MAX(version) as v FROM revisions WHERE document_id = ?'
   ),
@@ -358,7 +374,33 @@ async function handleUpdateDoc(req, res, docId) {
 async function handleDeleteDoc(req, res, docId) {
   const doc = stmts.getDocById.get(docId);
   if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
-  stmts.deleteDoc.run(docId);
+  stmts.softDeleteDoc.run(new Date().toISOString(), docId);
+  sendJSON(res, 200, { ok: true });
+}
+
+// ============================================================
+// Trash Handlers
+// ============================================================
+function handleListTrash(req, res) {
+  sendJSON(res, 200, stmts.listTrash.all());
+}
+
+function handleRestoreDoc(req, res, docId) {
+  const doc = stmts.getTrashDoc.get(docId);
+  if (!doc) return sendJSON(res, 404, { error: 'Document not found in trash' });
+  stmts.restoreDoc.run(docId);
+  sendJSON(res, 200, { ok: true });
+}
+
+function handlePurgeDoc(req, res, docId) {
+  const doc = stmts.getTrashDoc.get(docId);
+  if (!doc) return sendJSON(res, 404, { error: 'Document not found in trash' });
+  stmts.purgeDoc.run(docId);
+  sendJSON(res, 200, { ok: true });
+}
+
+function handlePurgeAllTrash(req, res) {
+  stmts.purgeAllTrash.run();
   sendJSON(res, 200, { ok: true });
 }
 
@@ -481,10 +523,28 @@ Body: {"content": "# Updated content", "message": "what changed"}
 Response: {id, title, version, updated_at}
 Note: Each update creates a new version automatically.
 
-### Delete Document
+### Delete Document (moves to trash)
 DELETE ${base}/api/docs/<id>
 Response: {ok: true}
-Note: Also deletes all version history.
+Note: Document is moved to trash. Use trash API to restore or permanently delete.
+
+### Trash - List Deleted Documents
+GET ${base}/api/trash
+Response: Array of {id, title, created_at, updated_at, deleted_at, version}
+
+### Trash - Restore Document
+POST ${base}/api/trash/<id>
+Response: {ok: true}
+
+### Trash - Permanently Delete One
+DELETE ${base}/api/trash/<id>
+Response: {ok: true}
+Note: Permanently deletes the document and all version history.
+
+### Trash - Empty Trash
+DELETE ${base}/api/trash
+Response: {ok: true}
+Note: Permanently deletes ALL trashed documents.
 
 ### Version History
 GET ${base}/api/docs/<id>/history
@@ -554,6 +614,16 @@ async function handleRequest(req, res) {
 
       if (pathname === '/api/docs' && method === 'GET') return handleListDocs(req, res, query);
       if (pathname === '/api/docs' && method === 'POST') return handleCreateDoc(req, res);
+
+      // Trash routes
+      if (pathname === '/api/trash' && method === 'GET') return handleListTrash(req, res);
+      if (pathname === '/api/trash' && method === 'DELETE') return handlePurgeAllTrash(req, res);
+      const trashMatch = pathname.match(/^\/api\/trash\/([^/]+)$/);
+      if (trashMatch) {
+        const docId = trashMatch[1];
+        if (method === 'POST') return handleRestoreDoc(req, res, docId);
+        if (method === 'DELETE') return handlePurgeDoc(req, res, docId);
+      }
 
       // /api/docs/:id
       const docMatch = pathname.match(/^\/api\/docs\/([^/]+)$/);
