@@ -785,15 +785,56 @@ body {
   }
 
   /* Main body: smaller padding */
-  .main-body { padding: 16px 14px; }
+  .main-body { padding: 12px 10px; }
 
-  /* Markdown: responsive tables and headings */
-  .markdown-body { max-width: 100%; }
-  .markdown-body h1 { font-size: 22px; }
-  .markdown-body h2 { font-size: 18px; }
-  .markdown-body h3 { font-size: 16px; }
-  .markdown-body table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .markdown-body pre { font-size: 12px; padding: 12px; }
+  /* Markdown: mobile optimization */
+  .markdown-body { max-width: 100%; font-size: 15px; line-height: 1.7; word-break: break-word; }
+  .markdown-body h1 { font-size: 21px; margin: 24px 0 12px; padding-bottom: 8px; }
+  .markdown-body h2 { font-size: 18px; margin: 20px 0 10px; }
+  .markdown-body h3 { font-size: 16px; margin: 18px 0 8px; }
+  .markdown-body h4 { font-size: 14px; margin: 16px 0 6px; }
+  .markdown-body p { margin: 0 0 12px; }
+
+  /* Tables: horizontal scroll wrapper, prevent cell squishing */
+  .markdown-body table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    width: max-content;
+    min-width: 100%;
+    margin: 0 0 16px;
+    font-size: 13px;
+  }
+  .markdown-body th, .markdown-body td {
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+  /* Allow wrapping for cells with long text */
+  .markdown-body td { max-width: 280px; white-space: normal; word-break: break-word; }
+
+  /* Code blocks: smaller, scrollable */
+  .markdown-body pre {
+    font-size: 12px;
+    padding: 12px;
+    margin: 0 0 12px;
+    border-radius: 6px;
+    max-width: calc(100vw - 20px);
+  }
+  .markdown-body code { font-size: 12px; padding: 1px 4px; }
+
+  /* Blockquotes: tighter */
+  .markdown-body blockquote { padding: 6px 12px; margin: 0 0 12px; font-size: 14px; }
+
+  /* Lists: tighter spacing */
+  .markdown-body ul, .markdown-body ol { padding-left: 20px; margin: 0 0 12px; }
+  .markdown-body li { margin: 2px 0; }
+
+  /* Images: full width */
+  .markdown-body img { border-radius: 6px; }
+
+  /* HR: tighter margins */
+  .markdown-body hr { margin: 16px 0; }
 
   /* Editor: stack toolbar vertically */
   .editor-toolbar { flex-direction: column; gap: 8px; }
