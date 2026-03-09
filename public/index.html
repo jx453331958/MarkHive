@@ -795,23 +795,53 @@ body {
   .markdown-body h4 { font-size: 14px; margin: 16px 0 6px; }
   .markdown-body p { margin: 0 0 12px; }
 
-  /* Tables: horizontal scroll wrapper, prevent cell squishing */
-  .markdown-body table {
-    display: block;
+  /* Table scroll wrapper */
+  .table-wrapper {
+    position: relative;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
+    margin: 0 0 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .table-wrapper table {
+    margin: 0;
+    border: none;
     width: max-content;
     min-width: 100%;
-    margin: 0 0 16px;
     font-size: 13px;
   }
-  .markdown-body th, .markdown-body td {
+  .table-wrapper th:first-child, .table-wrapper td:first-child { border-left: none; }
+  .table-wrapper th:last-child, .table-wrapper td:last-child { border-right: none; }
+  .table-wrapper tr:first-child th { border-top: none; }
+  .table-wrapper tr:last-child td { border-bottom: none; }
+  .table-wrapper th, .table-wrapper td {
     padding: 6px 10px;
     white-space: nowrap;
   }
-  /* Allow wrapping for cells with long text */
-  .markdown-body td { max-width: 280px; white-space: normal; word-break: break-word; }
+  .table-wrapper td { max-width: 280px; white-space: normal; word-break: break-word; }
+
+  /* Scroll progress bar */
+  .table-scroll-track {
+    height: 3px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    margin: 4px 0 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .table-scroll-track.visible { display: block; }
+  .table-scroll-thumb {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    opacity: .5;
+    transition: opacity .15s;
+    min-width: 20px;
+  }
+  .table-wrapper:active + .table-scroll-track .table-scroll-thumb,
+  .table-scroll-track:active .table-scroll-thumb { opacity: .8; }
 
   /* Code blocks: smaller, scrollable */
   .markdown-body pre {
@@ -1381,6 +1411,33 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function wrapTables(container) {
+  if (window.innerWidth > 768) return;
+  container.querySelectorAll('table').forEach(table => {
+    if (table.parentElement.classList.contains('table-wrapper')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
+    const track = document.createElement('div');
+    track.className = 'table-scroll-track';
+    track.innerHTML = '<div class="table-scroll-thumb"></div>';
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+    wrapper.parentNode.insertBefore(track, wrapper.nextSibling);
+
+    function updateBar() {
+      const sw = wrapper.scrollWidth, cw = wrapper.clientWidth;
+      if (sw <= cw) { track.classList.remove('visible'); return; }
+      track.classList.add('visible');
+      const thumb = track.firstChild;
+      const ratio = cw / sw;
+      thumb.style.width = (ratio * 100) + '%';
+      thumb.style.marginLeft = (wrapper.scrollLeft / sw * 100) + '%';
+    }
+    wrapper.addEventListener('scroll', updateBar, { passive: true });
+    requestAnimationFrame(updateBar);
+  });
+}
+
 function selectDoc(id) {
   navigate('#/doc/' + id);
 }
@@ -1397,6 +1454,7 @@ function showDocView() {
 
   updateActionButtons('view');
   body.innerHTML = `<div class="markdown-body">${marked.parse(currentDoc.content)}</div>`;
+  wrapTables(body);
 }
 
 function updateActionButtons(active) {
@@ -1628,6 +1686,7 @@ async function showVersion(version) {
       ${marked.parse(rev.content)}
     </div>
   `;
+  wrapTables(body);
 
   document.getElementById('backToCurrentBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id));
   document.getElementById('backToHistoryBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/history'));
