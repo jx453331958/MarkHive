@@ -1209,6 +1209,7 @@ async function loadDoc(id, action, ...args) {
     renderDocList();
   }
   closeMobileSidebar();
+  document.getElementById('mainBody').scrollTop = 0;
   switch (action) {
     case 'view': showDocView(); break;
     case 'edit': showEditor(currentDoc); break;
@@ -1232,15 +1233,18 @@ function handleRoute() {
   } else if ((m = hash.match(/^\/doc\/([^/]+)$/))) {
     loadDoc(m[1], 'view');
   } else if (hash === '/trash') {
+    document.getElementById('mainBody').scrollTop = 0;
     showTrash();
   } else if (hash === '/new') {
     if (currentView === 'trash') restoreMainActions();
     currentDoc = null;
     isNewDoc = true;
     renderDocList();
+    document.getElementById('mainBody').scrollTop = 0;
     showEditor(null);
     closeMobileSidebar();
   } else {
+    document.getElementById('mainBody').scrollTop = 0;
     showHome();
   }
 }
