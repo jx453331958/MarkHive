@@ -693,7 +693,18 @@ body {
   justify-content: center;
 }
 
+/* ===== Mobile Overlay ===== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 9;
+}
+.sidebar-overlay.active { display: block; }
+
 @media (max-width: 768px) {
+  /* Sidebar: fixed drawer */
   .sidebar {
     position: fixed;
     top: 0;
@@ -704,11 +715,60 @@ body {
     margin-left: 0 !important;
     opacity: 1 !important;
     pointer-events: auto !important;
+    z-index: 30;
   }
   .sidebar.open { transform: translateX(0); }
   .mobile-toggle { display: flex; }
   .sidebar-toggle { display: none; }
-  .main-body { padding: 20px 16px; }
+  .sidebar-overlay { z-index: 25; }
+
+  /* Main header: accommodate hamburger, allow actions to wrap */
+  .main-header { padding: 0 12px 0 52px; gap: 8px; flex-wrap: wrap; min-height: var(--header-h); height: auto; }
+  .main-title { font-size: 14px; }
+  .main-actions { gap: 4px; flex-wrap: wrap; }
+  .action-btn { padding: 4px 8px; font-size: 11px; }
+
+  /* Main body: smaller padding */
+  .main-body { padding: 16px 14px; }
+
+  /* Markdown: responsive tables and headings */
+  .markdown-body { max-width: 100%; }
+  .markdown-body h1 { font-size: 22px; }
+  .markdown-body h2 { font-size: 18px; }
+  .markdown-body h3 { font-size: 16px; }
+  .markdown-body table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .markdown-body pre { font-size: 12px; padding: 12px; }
+
+  /* Editor: stack toolbar vertically */
+  .editor-toolbar { flex-direction: column; gap: 8px; }
+  .editor-msg-input { width: 100%; }
+  .editor-footer { flex-direction: column; gap: 8px; align-items: stretch; }
+  .editor-btns { justify-content: flex-end; }
+  .editor-content { font-size: 13px; min-height: 200px; }
+
+  /* History: stack revision items */
+  .revision-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .revision-right { margin-left: 0; width: 100%; justify-content: flex-start; }
+
+  /* Diff: narrower line numbers */
+  .diff-line-num { width: 32px; min-width: 32px; padding: 0 4px; font-size: 11px; }
+  .diff-line-content { padding: 0 8px; font-size: 12px; }
+  .diff-hunk { font-size: 12px; }
+  .diff-header-info { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Dialogs: responsive width */
+  .dialog-box { width: calc(100vw - 32px) !important; max-width: 480px; }
+
+  /* Share dialog: responsive link items */
+  .share-link-item { flex-wrap: wrap; }
+  .share-link-url { min-width: 100%; margin-bottom: 4px; }
+  .share-form { flex-direction: column; }
+
+  /* Toast: centered on mobile */
+  .toast { left: 16px; right: 16px; bottom: 16px; text-align: center; }
+
+  /* Sidebar footer: allow wrapping */
+  .sidebar-footer { flex-wrap: wrap; gap: 6px; }
 }
 
 /* ===== Version Tag ===== */
@@ -735,6 +795,7 @@ body {
 </head>
 <body>
 <button class="mobile-toggle" id="mobileToggle">&#9776;</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app">
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
@@ -979,6 +1040,11 @@ function applySidebar() {
   document.getElementById('sidebarToggle').title = t('toggleSidebar');
 }
 
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
 // ===== Router =====
 function navigate(hash, replace = false) {
   if (replace) {
@@ -1012,7 +1078,7 @@ async function loadDoc(id, action, ...args) {
     if (currentView === 'trash') restoreMainActions();
     renderDocList();
   }
-  document.getElementById('sidebar').classList.remove('open');
+  closeMobileSidebar();
   switch (action) {
     case 'view': showDocView(); break;
     case 'edit': showEditor(currentDoc); break;
@@ -1043,7 +1109,7 @@ function handleRoute() {
     isNewDoc = true;
     renderDocList();
     showEditor(null);
-    document.getElementById('sidebar').classList.remove('open');
+    closeMobileSidebar();
   } else {
     showHome();
   }
@@ -1670,15 +1736,16 @@ async function showShareDialog() {
       return;
     }
     list.innerHTML = shares.map(s => {
+      const shareUrl = `${location.origin}/share/${s.token}`;
       const isExpired = s.expired;
       const expiryText = isExpired
         ? `<span class="share-link-expired">${t('shareExpired')}</span>`
         : (s.expires_at ? new Date(s.expires_at).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US') : t('sharePermanent'));
       return `
         <div class="share-link-item${isExpired ? ' expired' : ''}">
-          <span class="share-link-url" title="${escapeHtml(s.url)}">${escapeHtml(s.url)}</span>
+          <span class="share-link-url" title="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</span>
           <span class="share-link-expiry">${expiryText}</span>
-          ${!isExpired ? `<button class="share-link-btn" data-action="copy" data-url="${escapeHtml(s.url)}">${t('shareCopy')}</button>` : ''}
+          ${!isExpired ? `<button class="share-link-btn" data-action="copy" data-url="${escapeHtml(shareUrl)}">${t('shareCopy')}</button>` : ''}
           <button class="share-link-btn danger" data-action="revoke" data-id="${s.id}">${t('shareRevoke')}</button>
         </div>
       `;
@@ -1822,8 +1889,12 @@ bindMainActions();
 document.getElementById('trashBtn').addEventListener('click', () => navigate('#/trash'));
 
 document.getElementById('mobileToggle').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const isOpen = sidebar.classList.toggle('open');
+  overlay.classList.toggle('active', isOpen);
 });
+document.getElementById('sidebarOverlay').addEventListener('click', closeMobileSidebar);
 
 // ===== Config =====
 async function fetchConfig() {

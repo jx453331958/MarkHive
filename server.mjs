@@ -466,11 +466,7 @@ async function handleCreateShare(req, res, docId) {
 
   stmts.createShare.run(id, docId, token, expiresAt, now);
 
-  const host = req.headers.host || `localhost:${PORT}`;
-  const proto = req.headers['x-forwarded-proto'] || 'http';
-  const shareUrl = `${proto}://${host}/share/${token}`;
-
-  sendJSON(res, 201, { id, token, url: shareUrl, expires_at: expiresAt, created_at: now });
+  sendJSON(res, 201, { id, token, expires_at: expiresAt, created_at: now });
 }
 
 function handleListShares(req, res, docId) {
@@ -478,12 +474,9 @@ function handleListShares(req, res, docId) {
   if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
 
   const shares = stmts.listSharesByDoc.all(docId);
-  const host = req.headers.host || `localhost:${PORT}`;
-  const proto = req.headers['x-forwarded-proto'] || 'http';
 
   const result = shares.map(s => ({
     ...s,
-    url: `${proto}://${host}/share/${s.token}`,
     expired: s.expires_at ? new Date(s.expires_at) < new Date() : false,
   }));
 
@@ -520,8 +513,10 @@ function renderSharePage(share) {
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .container{max-width:860px;margin:0 auto;padding:40px 24px}
+@media(max-width:768px){.container{padding:24px 16px}}
 .header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border)}
 .header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700}
+@media(max-width:768px){.header h1{font-size:22px}}
 .meta{font-size:13px;color:var(--text-muted)}
 .markdown-body{line-height:1.75}
 .markdown-body h1{font-size:28px;color:var(--text-bright);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:10px;font-weight:700}
@@ -540,6 +535,7 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 .markdown-body th{background:var(--elevated);color:var(--text-bright)}
 .markdown-body img{max-width:100%;border-radius:8px}
 .markdown-body hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+@media(max-width:768px){.markdown-body table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}.markdown-body pre{font-size:12px;padding:12px}.markdown-body h1{font-size:22px}.markdown-body h2{font-size:18px}.markdown-body h3{font-size:16px}}
 </style>
 </head><body>
 <div class="container">
@@ -739,11 +735,11 @@ Response: {title}
 ### Share - Create Share Link
 POST ${base}/api/docs/<id>/share
 Body: {"expires_in": 1440}  (minutes, 0 = permanent)
-Response: {id, token, url, expires_at, created_at}
+Response: {id, token, expires_at, created_at}
 
 ### Share - List Share Links
 GET ${base}/api/docs/<id>/shares
-Response: Array of {id, token, url, expires_at, expired, created_at}
+Response: Array of {id, token, expires_at, expired, created_at}
 
 ### Share - Delete Share Link
 DELETE ${base}/api/shares/<id>

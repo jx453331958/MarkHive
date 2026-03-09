@@ -9,7 +9,7 @@ API-driven Markdown document management with version history and diff.
 - **RESTful API** - Full CRUD for markdown documents via API
 - **Version History** - Every update creates a new revision with commit message
 - **Diff Support** - Compare any two versions with unified diff (like `git log` / `git diff`)
-- **Dark Theme UI** - Built-in web viewer for browsing, history, and diff
+- **Dark Theme UI** - Built-in responsive web viewer for browsing, history, and diff (mobile-friendly)
 - **Full-text Search** - Search across document titles and content
 - **Zero Framework** - Pure Node.js server, single dependency (`better-sqlite3`)
 - **Agent Skill** - Built-in `/api/skill` endpoint for AI agent discovery
