@@ -718,15 +718,71 @@ body {
     z-index: 30;
   }
   .sidebar.open { transform: translateX(0); }
-  .mobile-toggle { display: flex; }
-  .sidebar-toggle { display: none; }
+  .mobile-toggle { display: none !important; }
+  .sidebar-toggle {
+    display: flex !important;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 20px;
+    margin-right: 8px;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+  }
   .sidebar-overlay { z-index: 25; }
 
-  /* Main header: accommodate hamburger, allow actions to wrap */
-  .main-header { padding: 0 12px 0 52px; gap: 8px; flex-wrap: wrap; min-height: var(--header-h); height: auto; }
-  .main-title { font-size: 14px; }
-  .main-actions { gap: 4px; flex-wrap: wrap; }
-  .action-btn { padding: 4px 8px; font-size: 11px; }
+  /* Main header: clean mobile toolbar */
+  .main-header {
+    padding: 0 12px;
+    gap: 6px;
+    min-height: 48px;
+    height: 48px;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .main-title {
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 40vw;
+  }
+  .main-actions {
+    gap: 2px;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .main-actions::-webkit-scrollbar { display: none; }
+  .action-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    border-radius: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .action-btn:hover, .action-btn:active {
+    background: var(--bg-elevated);
+    color: var(--text);
+  }
+  .action-btn.danger { color: var(--text-muted); }
+  .action-btn.danger:hover, .action-btn.danger:active {
+    background: color-mix(in srgb, var(--red) 15%, transparent);
+    color: var(--red);
+  }
 
   /* Main body: smaller padding */
   .main-body { padding: 16px 14px; }
@@ -769,6 +825,9 @@ body {
 
   /* Sidebar footer: allow wrapping */
   .sidebar-footer { flex-wrap: wrap; gap: 6px; }
+
+  /* Version badge: hide on mobile to save space */
+  .version-badge { display: none; }
 }
 
 /* ===== Version Tag ===== */
@@ -1859,8 +1918,15 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('sidebarToggle').addEventListener('click', () => {
-  sidebarCollapsed = !sidebarCollapsed;
-  applySidebar();
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const isOpen = sidebar.classList.toggle('open');
+    overlay.classList.toggle('active', isOpen);
+  } else {
+    sidebarCollapsed = !sidebarCollapsed;
+    applySidebar();
+  }
 });
 
 document.getElementById('themeBtn').addEventListener('click', () => {
