@@ -1063,6 +1063,13 @@ const i18n = {
     themeDark: '深色',
     themeAuto: '跟随系统',
     toggleSidebar: '收起/展开侧边栏',
+    rollbackBtn: '回滚',
+    rollbackTitle: '确认回滚',
+    rollbackMsg: '确定要将文档回滚到版本 {v} 吗？当前内容将保存为新的版本记录，历史不会丢失。',
+    rollbackConfirm: '确认回滚',
+    rollbackSuccess: '已回滚到版本 {v}',
+    rollbackFailed: '回滚失败',
+    rollbackToThis: '回滚到此版本',
   },
   en: {
     searchPlaceholder: 'Search documents...',
@@ -1147,6 +1154,13 @@ const i18n = {
     themeDark: 'Dark',
     themeAuto: 'Auto',
     toggleSidebar: 'Toggle sidebar',
+    rollbackBtn: 'Rollback',
+    rollbackTitle: 'Confirm Rollback',
+    rollbackMsg: 'Are you sure you want to rollback to version {v}? Current content will be saved as a new version record. History will not be lost.',
+    rollbackConfirm: 'Confirm Rollback',
+    rollbackSuccess: 'Rolled back to version {v}',
+    rollbackFailed: 'Failed to rollback',
+    rollbackToThis: 'Rollback to this version',
   }
 };
 
@@ -1442,6 +1456,41 @@ function wrapTables(container) {
   });
 }
 
+function slugify(text) {
+  return text.toLowerCase().trim()
+    .replace(/[^\p{L}\p{N} -]/gu, '')
+    .replace(/ /g, '-');
+}
+
+function addHeadingIds(container) {
+  const slugCount = {};
+  container.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+    let slug = slugify(h.textContent);
+    if (slugCount[slug] != null) { slugCount[slug]++; slug += '-' + slugCount[slug]; }
+    else { slugCount[slug] = 0; }
+    h.id = slug;
+  });
+}
+
+function handleAnchorClicks(container) {
+  container.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const id = decodeURIComponent(a.getAttribute('href').slice(1));
+    const target = container.querySelector('#' + CSS.escape(id));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+}
+
+function enhanceMarkdown(container) {
+  wrapTables(container);
+  const md = container.querySelector('.markdown-body');
+  if (md) { addHeadingIds(md); handleAnchorClicks(md); }
+}
+
 function selectDoc(id) {
   navigate('#/doc/' + id);
 }
@@ -1458,7 +1507,7 @@ function showDocView() {
 
   updateActionButtons('view');
   body.innerHTML = `<div class="markdown-body">${marked.parse(currentDoc.content)}</div>`;
-  wrapTables(body);
+  enhanceMarkdown(body);
 }
 
 function updateActionButtons(active) {
@@ -1651,6 +1700,9 @@ async function showHistory() {
                         data-from="${revisions[idx + 1].version}"
                         data-to="${rev.version}">${t('diffBtn')}</button>
               ` : ''}
+              ${idx > 0 ? `
+                <button class="rev-btn" data-action="rollback" data-version="${rev.version}" style="color:var(--accent)">${t('rollbackBtn')}</button>
+              ` : ''}
             </div>
           </li>
         `).join('')}
@@ -1664,6 +1716,26 @@ async function showHistory() {
   body.querySelectorAll('[data-action="diff"]').forEach(btn => {
     btn.addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/diff/' + btn.dataset.from + '/' + btn.dataset.to));
   });
+  body.querySelectorAll('[data-action="rollback"]').forEach(btn => {
+    btn.addEventListener('click', () => handleRollback(parseInt(btn.dataset.version)));
+  });
+}
+
+function handleRollback(version) {
+  if (!currentDoc) return;
+  const msg = t('rollbackMsg').replace('{v}', version);
+  showConfirm(t('rollbackTitle'), msg, async () => {
+    const res = await api(`/api/docs/${currentDoc.id}/rollback/${version}`, { method: 'POST' });
+    if (res && res.ok) {
+      const result = await res.json();
+      showToast(t('rollbackSuccess').replace('{v}', version), 'success');
+      currentDoc = null;
+      await fetchDocs();
+      navigate('#/doc/' + result.id, true);
+    } else {
+      showToast(t('rollbackFailed'), 'error');
+    }
+  }, t('rollbackConfirm'));
 }
 
 async function showVersion(version) {
@@ -1686,14 +1758,17 @@ async function showVersion(version) {
         ${rev.message ? ` · ${escapeHtml(rev.message)}` : ''}
         <button class="rev-btn" style="margin-left:12px" id="backToCurrentBtn">${t('backToCurrent')}</button>
         <button class="rev-btn" style="margin-left:4px" id="backToHistoryBtn">${t('backToHistory')}</button>
+        ${version < currentDoc.version ? `<button class="rev-btn" style="margin-left:4px;color:var(--accent)" id="rollbackVersionBtn">${t('rollbackToThis')}</button>` : ''}
       </div>
       ${marked.parse(rev.content)}
     </div>
   `;
-  wrapTables(body);
+  enhanceMarkdown(body);
 
   document.getElementById('backToCurrentBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id));
   document.getElementById('backToHistoryBtn').addEventListener('click', () => navigate('#/doc/' + currentDoc.id + '/history'));
+  const rollbackBtn = document.getElementById('rollbackVersionBtn');
+  if (rollbackBtn) rollbackBtn.addEventListener('click', () => handleRollback(version));
 }
 
 async function showDiff(from, to) {

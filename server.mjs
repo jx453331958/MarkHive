@@ -543,7 +543,23 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 <span class="meta">${escapeHtmlServer(SITE_TITLE)} &middot; ${new Date(share.updated_at).toLocaleDateString()}</span></div>
 <div class="markdown-body" id="content"></div>
 </div>
-<script>document.getElementById('content').innerHTML=marked.parse(${safeContent});</script>
+<script>
+document.getElementById('content').innerHTML=marked.parse(${safeContent});
+(function(){
+  var c=document.getElementById('content'),slugCount={};
+  c.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h){
+    var s=h.textContent.toLowerCase().trim().replace(/[^\\p{L}\\p{N} -]/gu,'').replace(/ /g,'-');
+    if(slugCount[s]!=null){slugCount[s]++;s+='-'+slugCount[s]}else{slugCount[s]=0}
+    h.id=s;
+  });
+  c.addEventListener('click',function(e){
+    var a=e.target.closest('a[href^="#"]');
+    if(!a)return;
+    var t=c.querySelector('#'+CSS.escape(decodeURIComponent(a.getAttribute('href').slice(1))));
+    if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}
+  });
+})();
+</script>
 </body></html>`;
 }
 
@@ -584,6 +600,26 @@ async function handleDocVersion(req, res, docId, version) {
   const rev = stmts.getRevision.get(docId, version);
   if (!rev) return sendJSON(res, 404, { error: 'Version not found' });
   sendJSON(res, 200, rev);
+}
+
+async function handleRollback(req, res, docId, version) {
+  const doc = stmts.getDocById.get(docId);
+  if (!doc) return sendJSON(res, 404, { error: 'Document not found' });
+
+  const rev = stmts.getRevision.get(docId, version);
+  if (!rev) return sendJSON(res, 404, { error: 'Version not found' });
+
+  const now = new Date().toISOString();
+  const maxVer = stmts.maxVersion.get(docId).v || 0;
+  const stats = computeStats(doc.content, rev.content);
+  const message = `Reverted to version ${version}`;
+
+  db.transaction(() => {
+    stmts.updateDoc.run(rev.title, rev.content, now, docId);
+    stmts.insertRevision.run(docId, maxVer + 1, rev.title, rev.content, message, stats.additions, stats.deletions, now);
+  })();
+
+  sendJSON(res, 200, { id: docId, title: rev.title, version: maxVer + 1, updated_at: now, reverted_to: version });
 }
 
 async function handleDocDiff(req, res, docId, query) {
@@ -728,6 +764,11 @@ GET ${base}/api/docs/<id>/diff?from=<v1>&to=<v2>
 Response: {doc_id, from_version, to_version, hunks: [{oldStart, oldLines, newStart, newLines, changes: [{type, value}]}], stats: {additions, deletions}}
 Change types: "context" (unchanged), "insert" (added), "delete" (removed)
 
+### Rollback to Version
+POST ${base}/api/docs/<id>/rollback/<version_number>
+Response: {id, title, version, updated_at, reverted_to}
+Note: Creates a new version with the content from the specified version. All history is preserved.
+
 ### Config (public, no auth)
 GET ${base}/api/config
 Response: {title}
@@ -850,6 +891,10 @@ async function handleRequest(req, res) {
       // /api/docs/:id/versions/:version
       const versionMatch = pathname.match(/^\/api\/docs\/([^/]+)\/versions\/(\d+)$/);
       if (versionMatch && method === 'GET') return handleDocVersion(req, res, versionMatch[1], parseInt(versionMatch[2]));
+
+      // /api/docs/:id/rollback/:version
+      const rollbackMatch = pathname.match(/^\/api\/docs\/([^/]+)\/rollback\/(\d+)$/);
+      if (rollbackMatch && method === 'POST') return handleRollback(req, res, rollbackMatch[1], parseInt(rollbackMatch[2]));
 
       // /api/docs/:id/diff?from=1&to=2
       const diffMatch = pathname.match(/^\/api\/docs\/([^/]+)\/diff$/);
