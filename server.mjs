@@ -503,7 +503,7 @@ function renderSharePage(share) {
   const safeContent = JSON.stringify(share.content).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>${escapeHtmlServer(share.title)} - ${escapeHtmlServer(SITE_TITLE)}</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -512,8 +512,8 @@ function renderSharePage(share) {
 @media(prefers-color-scheme:light){:root{--bg:#f5f6f8;--surface:#fff;--elevated:#f0f1f3;--accent:#6b4ce0;--text:#374151;--text-bright:#111827;--text-muted:#9ca3af;--border:#e5e7eb}}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.container{max-width:860px;margin:0 auto;padding:40px 24px}
-@media(max-width:768px){.container{padding:24px 16px}}
+.container{max-width:860px;margin:0 auto;padding:40px 24px;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+@media(max-width:768px){.container{padding:24px 16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}}
 .header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border)}
 .header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700}
 @media(max-width:768px){.header h1{font-size:22px}}
