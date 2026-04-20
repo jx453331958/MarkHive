@@ -499,6 +499,31 @@ function handleGetShareDoc(req, res, token) {
   sendJSON(res, 200, { title: share.title, content: share.content, updated_at: share.updated_at });
 }
 
+function sanitizeFilename(name) {
+  // Strip path separators and control chars; collapse whitespace; trim.
+  const cleaned = String(name).replace(/[\x00-\x1f/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  return cleaned.slice(0, 120) || 'document';
+}
+
+function handleShareDownload(req, res, token) {
+  const share = stmts.getShareByToken.get(token);
+  if (!share) return sendJSON(res, 404, { error: 'Share link not found' });
+  if (share.expires_at && new Date(share.expires_at) < new Date()) {
+    return sendJSON(res, 410, { error: 'Share link has expired' });
+  }
+
+  const filename = sanitizeFilename(share.title) + '.md';
+  const asciiFallback = filename.replace(/[^\x20-\x7e]/g, '_');
+  const body = Buffer.from(share.content, 'utf-8');
+  res.writeHead(200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Content-Length': body.length,
+    'Content-Disposition': `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    'Cache-Control': 'no-store',
+  });
+  res.end(body);
+}
+
 function renderSharePage(share) {
   const safeContent = JSON.stringify(share.content).replace(/</g, '\\u003c');
   return `<!DOCTYPE html>
@@ -514,10 +539,14 @@ function renderSharePage(share) {
 body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .container{max-width:860px;margin:0 auto;padding:40px 24px;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
 @media(max-width:768px){.container{padding:24px 16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}}
-.header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border)}
-.header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700}
-@media(max-width:768px){.header h1{font-size:22px}}
+.header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.header-info{flex:1;min-width:0}
+.header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700;word-wrap:break-word}
+@media(max-width:768px){.header h1{font-size:22px}.header{flex-direction:column;align-items:stretch}}
 .meta{font-size:13px;color:var(--text-muted)}
+.download-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:500;color:var(--text-bright);background:var(--elevated);border:1px solid var(--border);border-radius:8px;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
+.download-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.download-btn svg{width:14px;height:14px}
 .markdown-body{line-height:1.75}
 .markdown-body h1{font-size:28px;color:var(--text-bright);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:10px;font-weight:700}
 .markdown-body h2{font-size:22px;color:var(--text-bright);margin:28px 0 12px;font-weight:600}
@@ -539,8 +568,14 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 </style>
 </head><body>
 <div class="container">
-<div class="header"><h1>${escapeHtmlServer(share.title)}</h1>
+<div class="header">
+<div class="header-info"><h1>${escapeHtmlServer(share.title)}</h1>
 <span class="meta">${escapeHtmlServer(SITE_TITLE)} &middot; ${new Date(share.updated_at).toLocaleDateString()}</span></div>
+<a class="download-btn" href="/api/share/${escapeHtmlServer(share.token)}/download" download title="Download Markdown">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+<span>Download</span>
+</a>
+</div>
 <div class="markdown-body" id="content"></div>
 </div>
 <script>
@@ -790,6 +825,10 @@ Response: {ok: true}
 GET ${base}/api/share/<token>
 Response: {title, content, updated_at}
 
+### Share - Download Shared Document (public, no auth)
+GET ${base}/api/share/<token>/download
+Response: Markdown file (text/markdown) with Content-Disposition: attachment
+
 ### Share - View Shared Document Page (public, no auth)
 GET ${base}/share/<token>
 Response: HTML page rendering the shared document
@@ -847,6 +886,8 @@ async function handleRequest(req, res) {
     if (pathname === '/api/config' && method === 'GET') return handleConfig(req, res);
 
     // Public share document API
+    const publicShareDownloadMatch = pathname.match(/^\/api\/share\/([a-f0-9]+)\/download$/);
+    if (publicShareDownloadMatch && method === 'GET') return handleShareDownload(req, res, publicShareDownloadMatch[1]);
     const publicShareMatch = pathname.match(/^\/api\/share\/([a-f0-9]+)$/);
     if (publicShareMatch && method === 'GET') return handleGetShareDoc(req, res, publicShareMatch[1]);
 
