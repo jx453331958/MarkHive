@@ -169,6 +169,24 @@ body {
   flex-shrink: 0;
   transition: background .15s, color .15s;
 }
+.rail-tooltip {
+  position: fixed;
+  z-index: 100;
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity .12s;
+}
+.rail-tooltip.show { opacity: 1; }
 .search-rail-btn {
   display: none;
   width: 36px;
@@ -1466,6 +1484,19 @@ function sortDocs(docs) {
   return sorted;
 }
 
+function showRailTip(item) {
+  if (!sidebarCollapsed || window.innerWidth <= 768) return;
+  const tip = document.getElementById('railTooltip');
+  tip.textContent = item.getAttribute('aria-label') || '';
+  const r = item.getBoundingClientRect();
+  tip.style.top = (r.top + r.height / 2) + 'px';
+  tip.style.left = (r.right + 8) + 'px';
+  tip.classList.add('show');
+}
+function hideRailTip() {
+  document.getElementById('railTooltip').classList.remove('show');
+}
+
 function renderDocList() {
   const list = document.getElementById('docList');
   const sorted = sortDocs(allDocs);
@@ -1476,7 +1507,7 @@ function renderDocList() {
     const mono = escapeHtml([...doc.title.trim()][0] || '#');
     return `
     <div class="doc-item${currentDoc && currentDoc.id === doc.id ? ' active' : ''}"
-         data-id="${doc.id}" title="${title}" aria-label="${title}">
+         data-id="${doc.id}" aria-label="${title}">
       <span class="doc-mono" aria-hidden="true">${mono}</span>
       <div class="doc-item-title">${title}</div>
       <div class="doc-item-meta">v${doc.version} · ${formatTime(doc.updated_at)}</div>
@@ -1484,8 +1515,11 @@ function renderDocList() {
   `;
   }).join('');
 
+  hideRailTip();
   list.querySelectorAll('.doc-item').forEach(el => {
     el.addEventListener('click', () => selectDoc(el.dataset.id));
+    el.addEventListener('mouseenter', () => showRailTip(el));
+    el.addEventListener('mouseleave', hideRailTip);
   });
 }
 
@@ -2177,6 +2211,8 @@ document.getElementById('searchRailBtn').addEventListener('click', () => {
   document.getElementById('searchInput').focus();
 });
 
+document.getElementById('docList').addEventListener('scroll', hideRailTip);
+
 document.getElementById('themeBtn').addEventListener('click', () => {
   theme = theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark';
   applyTheme();
@@ -2231,5 +2267,6 @@ applySidebar();
 fetchConfig();
 fetchDocs().then(handleRoute);
 </script>
+<div class="rail-tooltip" id="railTooltip"></div>
 </body>
 </html>
