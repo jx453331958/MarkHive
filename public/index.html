@@ -248,6 +248,8 @@ body {
   .sidebar.collapsed .search-box { display: flex; justify-content: center; padding: 10px 0; }
   .sidebar.collapsed .search-rail-btn { display: flex; }
   .sidebar.collapsed .doc-item { display: flex; justify-content: center; padding: 8px 0; border-left-color: transparent; }
+  .sidebar.collapsed .doc-item:hover { background: transparent; }
+  .sidebar.collapsed .doc-item:hover .doc-mono { background: var(--bg-hover); }
   .sidebar.collapsed .doc-item.active { background: transparent; border-left-color: transparent; }
   .sidebar.collapsed .doc-mono { display: flex; }
   .sidebar.collapsed .doc-item.active .doc-mono { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -1034,6 +1036,7 @@ body {
 const i18n = {
   zh: {
     searchPlaceholder: '搜索文档...',
+    search: '搜索',
     sortTime: '时间',
     sortTitle: '标题',
     logout: '退出',
@@ -1125,6 +1128,7 @@ const i18n = {
   },
   en: {
     searchPlaceholder: 'Search documents...',
+    search: 'Search',
     sortTime: 'Time',
     sortTitle: 'Title',
     logout: 'Logout',
@@ -1338,6 +1342,7 @@ function applyTheme() {
 function applyLang() {
   localStorage.setItem('markhive-lang', lang);
   document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+  document.getElementById('searchRailBtn').setAttribute('aria-label', t('search'));
   document.getElementById('sortTime').textContent = t('sortTime');
   document.getElementById('sortTitle').textContent = t('sortTitle');
   document.getElementById('logoutBtn').textContent = t('logout');
@@ -1468,7 +1473,7 @@ function renderDocList() {
 
   list.innerHTML = sorted.map(doc => {
     const title = escapeHtml(doc.title);
-    const mono = escapeHtml(doc.title.trim().charAt(0) || '#');
+    const mono = escapeHtml([...doc.title.trim()][0] || '#');
     return `
     <div class="doc-item${currentDoc && currentDoc.id === doc.id ? ' active' : ''}"
          data-id="${doc.id}" title="${title}" aria-label="${title}">
