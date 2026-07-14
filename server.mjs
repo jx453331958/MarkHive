@@ -542,11 +542,19 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 .header{padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .header-info{flex:1;min-width:0}
 .header h1{font-size:28px;color:var(--text-bright);margin-bottom:8px;font-weight:700;word-wrap:break-word}
-@media(max-width:768px){.header h1{font-size:22px}.header{flex-direction:column;align-items:stretch}}
+@media(max-width:768px){.header h1{font-size:22px}.header{flex-direction:column;align-items:stretch}.download-wrap{width:100%}.download-btn{width:100%;justify-content:center}}
 .meta{font-size:13px;color:var(--text-muted)}
-.download-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:500;color:var(--text-bright);background:var(--elevated);border:1px solid var(--border);border-radius:8px;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
+.download-wrap{position:relative;flex-shrink:0}
+.download-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:500;color:var(--text-bright);background:var(--elevated);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap}
 .download-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .download-btn svg{width:14px;height:14px}
+.download-btn .caret{width:12px;height:12px;transition:transform .15s}
+.download-btn[aria-expanded="true"] .caret{transform:rotate(180deg)}
+.download-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:20}
+.download-menu[hidden]{display:none}
+.download-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;min-height:44px;box-sizing:border-box;font-family:inherit;font-size:14px;color:var(--text-bright);background:none;border:none;border-radius:6px;text-decoration:none;cursor:pointer;text-align:left}
+.download-item svg{width:16px;height:16px;flex-shrink:0;color:var(--text-muted)}
+.download-item:hover{background:var(--elevated)}
 .markdown-body{line-height:1.75}
 .markdown-body h1{font-size:28px;color:var(--text-bright);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:10px;font-weight:700}
 .markdown-body h2{font-size:22px;color:var(--text-bright);margin:28px 0 12px;font-weight:600}
@@ -565,16 +573,44 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 .markdown-body img{max-width:100%;border-radius:8px}
 .markdown-body hr{border:none;border-top:1px solid var(--border);margin:24px 0}
 @media(max-width:768px){.markdown-body table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}.markdown-body pre{font-size:12px;padding:12px}.markdown-body h1{font-size:22px}.markdown-body h2{font-size:18px}.markdown-body h3{font-size:16px}}
+@media print{
+:root{--bg:#fff;--surface:#fff;--elevated:#f5f5f5;--text:#000;--text-bright:#000;--text-muted:#444;--border:#ccc;--accent:#333}
+body{background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.container{max-width:none;padding:0}
+.download-wrap{display:none}
+.header{border-bottom:1px solid #ccc}
+.markdown-body a{color:#000;text-decoration:underline}
+.markdown-body code{background:#f5f5f5;color:#000}
+.markdown-body pre{background:#f5f5f5;border:1px solid #ccc}
+.markdown-body pre code{color:#000}
+.markdown-body blockquote{border-left:3px solid #999;background:none;color:#333}
+.markdown-body th{background:#f5f5f5;color:#000}
+.markdown-body table{display:table;overflow:visible}
+.markdown-body pre,.markdown-body blockquote,.markdown-body table,.markdown-body img{page-break-inside:avoid;break-inside:avoid}
+}
 </style>
 </head><body>
 <div class="container">
 <div class="header">
 <div class="header-info"><h1>${escapeHtmlServer(share.title)}</h1>
 <span class="meta">${escapeHtmlServer(SITE_TITLE)} &middot; ${new Date(share.updated_at).toLocaleDateString()}</span></div>
-<a class="download-btn" href="/api/share/${escapeHtmlServer(share.token)}/download" download title="Download Markdown">
+<div class="download-wrap">
+<button type="button" class="download-btn" id="dlBtn" aria-haspopup="menu" aria-expanded="false" title="Download">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 <span>Download</span>
+<svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+</button>
+<div class="download-menu" id="dlMenu" role="menu" aria-labelledby="dlBtn" hidden>
+<a class="download-item" role="menuitem" href="/api/share/${escapeHtmlServer(share.token)}/download" download>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+<span>Markdown</span>
 </a>
+<button type="button" class="download-item" role="menuitem" id="dlPdf">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+<span>PDF</span>
+</button>
+</div>
+</div>
 </div>
 <div class="markdown-body" id="content"></div>
 </div>
@@ -593,6 +629,21 @@ document.getElementById('content').innerHTML=marked.parse(${safeContent});
     var t=c.querySelector('#'+CSS.escape(decodeURIComponent(a.getAttribute('href').slice(1))));
     if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}
   });
+})();
+(function(){
+  var btn=document.getElementById('dlBtn'),menu=document.getElementById('dlMenu'),pdf=document.getElementById('dlPdf');
+  function open(){menu.hidden=false;btn.setAttribute('aria-expanded','true')}
+  function close(){menu.hidden=true;btn.setAttribute('aria-expanded','false')}
+  btn.addEventListener('click',function(e){e.stopPropagation();menu.hidden?open():close()});
+  document.addEventListener('click',function(e){if(!menu.hidden&&!btn.contains(e.target)&&!menu.contains(e.target))close()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!menu.hidden){close();btn.focus()}});
+  menu.addEventListener('click',function(e){var it=e.target.closest('.download-item');if(it&&it!==pdf)close()});
+  pdf.addEventListener('click',function(){close();window.print()});
+})();
+(function(){
+  var full=document.title,clean=${JSON.stringify(sanitizeFilename(share.title))};
+  window.addEventListener('beforeprint',function(){document.title=clean});
+  window.addEventListener('afterprint',function(){document.title=full});
 })();
 </script>
 </body></html>`;
