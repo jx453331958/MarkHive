@@ -573,6 +573,21 @@ body{font-family:'Noto Sans SC',-apple-system,sans-serif;background:var(--bg);co
 .markdown-body img{max-width:100%;border-radius:8px}
 .markdown-body hr{border:none;border-top:1px solid var(--border);margin:24px 0}
 @media(max-width:768px){.markdown-body table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}.markdown-body pre{font-size:12px;padding:12px}.markdown-body h1{font-size:22px}.markdown-body h2{font-size:18px}.markdown-body h3{font-size:16px}}
+@media print{
+:root{--bg:#fff;--surface:#fff;--elevated:#f5f5f5;--text:#000;--text-bright:#000;--text-muted:#444;--border:#ccc;--accent:#333}
+body{background:#fff;color:#000}
+.container{max-width:none;padding:0}
+.download-wrap{display:none}
+.header{border-bottom:1px solid #ccc}
+.markdown-body a{color:#000;text-decoration:underline}
+.markdown-body code{background:#f5f5f5;color:#000}
+.markdown-body pre{background:#f5f5f5;border:1px solid #ccc}
+.markdown-body pre code{color:#000}
+.markdown-body blockquote{border-left:3px solid #999;background:none;color:#333}
+.markdown-body th{background:#f5f5f5;color:#000}
+.markdown-body table{display:table;overflow:visible}
+.markdown-body pre,.markdown-body blockquote,.markdown-body table,.markdown-body img{page-break-inside:avoid}
+}
 </style>
 </head><body>
 <div class="container">
@@ -624,6 +639,11 @@ document.getElementById('content').innerHTML=marked.parse(${safeContent});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!menu.hidden){close();btn.focus()}});
   menu.addEventListener('click',function(e){var it=e.target.closest('.download-item');if(it&&it!==pdf)close()});
   pdf.addEventListener('click',function(){close();window.print()});
+})();
+(function(){
+  var full=document.title,clean=${JSON.stringify(sanitizeFilename(share.title))};
+  window.addEventListener('beforeprint',function(){document.title=clean});
+  window.addEventListener('afterprint',function(){document.title=full});
 })();
 </script>
 </body></html>`;
