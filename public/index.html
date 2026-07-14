@@ -1233,7 +1233,9 @@ function applySidebar() {
   const sidebar = document.getElementById('sidebar');
   sidebar.classList.toggle('collapsed', sidebarCollapsed);
   localStorage.setItem('markhive-sidebar', sidebarCollapsed ? 'collapsed' : 'expanded');
-  document.getElementById('sidebarToggle').title = t('toggleSidebar');
+  const toggle = document.getElementById('sidebarToggle');
+  toggle.title = t('toggleSidebar');
+  toggle.setAttribute('aria-expanded', String(!sidebarCollapsed));
 }
 
 function closeMobileSidebar() {
@@ -2163,6 +2165,11 @@ document.getElementById('sidebarToggle').addEventListener('click', () => {
     sidebarCollapsed = !sidebarCollapsed;
     applySidebar();
   }
+});
+
+document.getElementById('searchRailBtn').addEventListener('click', () => {
+  if (sidebarCollapsed) { sidebarCollapsed = false; applySidebar(); }
+  document.getElementById('searchInput').focus();
 });
 
 document.getElementById('themeBtn').addEventListener('click', () => {
