@@ -995,6 +995,7 @@ body {
 <body>
 <button class="mobile-toggle" id="mobileToggle">&#9776;</button>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="rail-tooltip" id="railTooltip"></div>
 <div class="app">
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
@@ -1048,7 +1049,6 @@ body {
     </div>
   </main>
 </div>
-
 <script>
 // ===== i18n =====
 const i18n = {
@@ -1485,7 +1485,12 @@ function sortDocs(docs) {
 }
 
 function showRailTip(item) {
-  if (!sidebarCollapsed || window.innerWidth <= 768) return;
+  if (window.innerWidth <= 768) return;
+  if (!sidebarCollapsed) {
+    // expanded sidebar: only show for titles that are actually ellipsis-truncated
+    const titleEl = item.querySelector('.doc-item-title');
+    if (!titleEl || titleEl.scrollWidth <= titleEl.clientWidth) return;
+  }
   const tip = document.getElementById('railTooltip');
   tip.textContent = item.getAttribute('aria-label') || '';
   const r = item.getBoundingClientRect();
@@ -2212,6 +2217,7 @@ document.getElementById('searchRailBtn').addEventListener('click', () => {
 });
 
 document.getElementById('docList').addEventListener('scroll', hideRailTip);
+window.addEventListener('resize', hideRailTip);
 
 document.getElementById('themeBtn').addEventListener('click', () => {
   theme = theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark';
@@ -2267,6 +2273,5 @@ applySidebar();
 fetchConfig();
 fetchDocs().then(handleRoute);
 </script>
-<div class="rail-tooltip" id="railTooltip"></div>
 </body>
 </html>
