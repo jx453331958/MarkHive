@@ -2253,8 +2253,6 @@ function bindMainActions() {
     }
     function closeMenu() { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
     btn.addEventListener('click', (e) => { if (!currentDoc) return; e.stopPropagation(); menu.hidden ? openMenu() : closeMenu(); });
-    document.addEventListener('click', (e) => { if (!menu.hidden && !btn.contains(e.target) && !menu.contains(e.target)) closeMenu(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { closeMenu(); btn.focus(); } });
     document.getElementById('dlAppMd').addEventListener('click', () => { closeMenu(); downloadMarkdown(); });
     document.getElementById('dlAppPdf').addEventListener('click', () => { closeMenu(); downloadPdf(); });
   })();
@@ -2331,6 +2329,26 @@ document.getElementById('langBtn').addEventListener('click', () => {
 });
 
 document.getElementById('newDocBtn').addEventListener('click', () => navigate('#/new'));
+
+// One-time global handlers for the download dropdown. bindMainActions() re-runs
+// on view restore, so these must live outside it to avoid leaking listeners.
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('dlAppMenu');
+  const btn = document.getElementById('btnRaw');
+  if (menu && !menu.hidden && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  const menu = document.getElementById('dlAppMenu');
+  const btn = document.getElementById('btnRaw');
+  if (e.key === 'Escape' && menu && !menu.hidden) {
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    btn.focus();
+  }
+});
 
 bindMainActions();
 
