@@ -1002,7 +1002,7 @@ body {
 
 #printArea { display: none; }
 @media print {
-  .app, .mobile-toggle, .sidebar-overlay { display: none !important; }
+  body > *:not(#printArea) { display: none !important; }
   #printArea {
     display: block !important;
     --bg-deep: #fff; --bg-surface: #fff; --bg-elevated: #f5f5f5; --bg-hover: transparent;
