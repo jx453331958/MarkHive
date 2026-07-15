@@ -990,6 +990,24 @@ body {
   height: 200px;
   color: var(--text-muted);
 }
+
+#printArea { display: none; }
+@media print {
+  .app, .mobile-toggle, .sidebar-overlay { display: none !important; }
+  #printArea {
+    display: block !important;
+    --bg-deep: #fff; --bg-surface: #fff; --bg-elevated: #f5f5f5; --bg-hover: transparent;
+    --accent: #333; --text: #000; --text-bright: #000; --text-muted: #444; --border: #ccc;
+  }
+  body { background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #printArea .markdown-body { max-width: none; padding: 24px 0; color: #000; }
+  #printArea .markdown-body a { text-decoration: underline; }
+  #printArea .markdown-body table { display: table; overflow: visible; }
+  #printArea .markdown-body pre,
+  #printArea .markdown-body blockquote,
+  #printArea .markdown-body table,
+  #printArea .markdown-body img { page-break-inside: avoid; break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -1500,6 +1518,19 @@ function showRailTip(item) {
 }
 function hideRailTip() {
   document.getElementById('railTooltip').classList.remove('show');
+}
+
+function downloadPdf() {
+  if (!currentDoc) return;
+  const area = document.getElementById('printArea');
+  area.innerHTML = '<div class="markdown-body">' + marked.parse(currentDoc.content) + '</div>';
+  const prevTitle = document.title;
+  const clean = (currentDoc.title || 'document')
+    .replace(/[\x00-\x1f/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'document';
+  const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  document.title = clean;
+  window.print();
 }
 
 function renderDocList() {
@@ -2273,5 +2304,6 @@ applySidebar();
 fetchConfig();
 fetchDocs().then(handleRoute);
 </script>
+<div id="printArea"></div>
 </body>
 </html>
