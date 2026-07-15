@@ -306,6 +306,15 @@ body {
 .action-btn:hover { color: var(--text); border-color: var(--text-muted); }
 .action-btn.active { color: var(--accent); border-color: var(--accent); }
 .action-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.download-wrap { position: relative; }
+#btnRaw { display: inline-flex; align-items: center; gap: 4px; }
+#btnRaw .dl-caret { width: 12px; height: 12px; transition: transform .15s; }
+#btnRaw[aria-expanded="true"] .dl-caret { transform: rotate(180deg); }
+.download-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 160px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 40; }
+.download-menu[hidden] { display: none; }
+.download-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; min-height: 40px; box-sizing: border-box; font-family: inherit; font-size: 14px; color: var(--text-bright); background: none; border: none; border-radius: 6px; cursor: pointer; text-align: left; }
+.download-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); }
+.download-item:hover { background: var(--bg-hover); }
 .main-body {
   flex: 1;
   overflow-y: auto;
@@ -1057,7 +1066,22 @@ body {
         <button class="action-btn" id="btnView"></button>
         <button class="action-btn" id="btnEdit"></button>
         <button class="action-btn" id="btnHistory"></button>
-        <button class="action-btn" id="btnRaw"></button>
+        <div class="download-wrap">
+          <button class="action-btn" id="btnRaw" aria-haspopup="menu" aria-expanded="false">
+            <span id="btnRawLabel"></span>
+            <svg class="dl-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="download-menu" id="dlAppMenu" role="menu" aria-labelledby="btnRaw" hidden>
+            <button type="button" class="download-item" role="menuitem" id="dlAppMd">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Markdown</span>
+            </button>
+            <button type="button" class="download-item" role="menuitem" id="dlAppPdf">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
         <button class="action-btn" id="btnShare"></button>
         <button class="action-btn danger" id="btnDelete"></button>
       </div>
@@ -1392,7 +1416,7 @@ function applyLang() {
     btnView.textContent = t('view');
     document.getElementById('btnEdit').textContent = t('edit');
     document.getElementById('btnHistory').textContent = t('history');
-    document.getElementById('btnRaw').textContent = t('raw');
+    document.getElementById('btnRawLabel').textContent = t('raw');
     document.getElementById('btnShare').textContent = t('share');
     document.getElementById('btnDelete').textContent = t('delete');
   }
@@ -1531,6 +1555,17 @@ function downloadPdf() {
   window.addEventListener('afterprint', restore);
   document.title = clean;
   window.print();
+}
+
+function downloadMarkdown() {
+  if (!currentDoc) return;
+  const blob = new Blob([currentDoc.content], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentDoc.title}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderDocList() {
@@ -2169,7 +2204,22 @@ function restoreMainActions() {
     <button class="action-btn" id="btnView">${t('view')}</button>
     <button class="action-btn" id="btnEdit">${t('edit')}</button>
     <button class="action-btn" id="btnHistory">${t('history')}</button>
-    <button class="action-btn" id="btnRaw">${t('raw')}</button>
+    <div class="download-wrap">
+      <button class="action-btn" id="btnRaw" aria-haspopup="menu" aria-expanded="false">
+        <span id="btnRawLabel">${t('raw')}</span>
+        <svg class="dl-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="download-menu" id="dlAppMenu" role="menu" aria-labelledby="btnRaw" hidden>
+        <button type="button" class="download-item" role="menuitem" id="dlAppMd">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Markdown</span>
+        </button>
+        <button type="button" class="download-item" role="menuitem" id="dlAppPdf">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>PDF</span>
+        </button>
+      </div>
+    </div>
     <button class="action-btn" id="btnShare">${t('share')}</button>
     <button class="action-btn danger" id="btnDelete">${t('delete')}</button>
   `;
@@ -2187,16 +2237,27 @@ function bindMainActions() {
   document.getElementById('btnHistory').addEventListener('click', () => {
     if (currentDoc && currentView !== 'history') navigate('#/doc/' + currentDoc.id + '/history');
   });
-  document.getElementById('btnRaw').addEventListener('click', () => {
-    if (!currentDoc) return;
-    const blob = new Blob([currentDoc.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentDoc.title}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+  (function () {
+    const btn = document.getElementById('btnRaw');
+    const menu = document.getElementById('dlAppMenu');
+    function openMenu() {
+      menu.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+      // Position as fixed so the menu isn't clipped by #mainActions' mobile
+      // overflow-x:auto scroll container (which also clips the y-axis).
+      const r = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = (r.bottom + 6) + 'px';
+      menu.style.left = 'auto';
+      menu.style.right = (window.innerWidth - r.right) + 'px';
+    }
+    function closeMenu() { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    btn.addEventListener('click', (e) => { if (!currentDoc) return; e.stopPropagation(); menu.hidden ? openMenu() : closeMenu(); });
+    document.addEventListener('click', (e) => { if (!menu.hidden && !btn.contains(e.target) && !menu.contains(e.target)) closeMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { closeMenu(); btn.focus(); } });
+    document.getElementById('dlAppMd').addEventListener('click', () => { closeMenu(); downloadMarkdown(); });
+    document.getElementById('dlAppPdf').addEventListener('click', () => { closeMenu(); downloadPdf(); });
+  })();
   document.getElementById('btnShare').addEventListener('click', () => {
     if (currentDoc) showShareDialog();
   });
